@@ -1,0 +1,22 @@
+# Python
+python/__pycache__/
+python/scbridge/__pycache__/
+*.py[cod]
+*$py.class
+python/build/
+python/dist/
+python/scbridge.egg-info/
+
+# R
+R/.Rhistory
+R/.RData
+R/.Rproj.user/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Internal documentation (not needed for GitHub)
+CREATE_PACKAGE_FILES.md
+IMPLEMENTATION_SUMMARY.md
+PACKAGE_COMPLETE.md

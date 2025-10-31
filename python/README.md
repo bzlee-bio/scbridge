@@ -7,7 +7,7 @@ Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seur
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/YOUR_USERNAME/scbridge.git#subdirectory=python
+pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
 ```
 
 ### Local Development
@@ -182,10 +182,10 @@ MIT License
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
-## Citation
+<!-- ## Citation
 
 If you use scbridge in your research, please cite:
 
 ```
 [Citation information will be added]
-```
+``` -->

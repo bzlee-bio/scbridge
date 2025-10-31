@@ -11,7 +11,7 @@ Cross-platform single-cell RNA-seq data storage for R (Seurat/SingleCellExperime
 install.packages("devtools")
 
 # Install scBridge from GitHub
-devtools::install_github("YOUR_USERNAME/scbridge", subdir = "R")
+devtools::install_github("bzlee-bio/scbridge", subdir = "R")
 ```
 
 ### Local Development
@@ -235,10 +235,4 @@ MIT License
 
 See [CONTRIBUTING.md](../CONTRIBUTING.md)
 
-## Citation
 
-If you use scBridge in your research, please cite:
-
-```
-[Citation information will be added]
-```
