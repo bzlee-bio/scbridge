@@ -100,7 +100,7 @@ def write(adata: ad.AnnData,
 
 def read(path: Union[str, Path]) -> ad.AnnData:
     """
-    Read AnnData object from .scb file
+    Read AnnData object from .scb file (or any tar archive)
 
     Loads ALL 10 components of AnnData:
     - X (expression matrix)
@@ -117,7 +117,8 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     Parameters:
     -----------
     path : str or Path
-        Path to .scb file
+        Path to .scb file or any valid tar archive in scBridge format
+        (supports .scb, .scbridge, .tar, or no extension)
 
     Returns:
     --------
@@ -127,6 +128,9 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     --------
     >>> import scbridge as sb
     >>> adata = sb.read("data.scb")
+    >>> # Also works with legacy formats:
+    >>> adata = sb.read("data.scbridge")
+    >>> adata = sb.read("data.tar")
     >>> print(adata)
     """
     path = Path(path)
@@ -134,33 +138,33 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
 
-    # Validate extension
-    if not str(path).endswith('.scb'):
+    # Try to open as tar archive - will raise an error if not a valid tar file
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = Path(tmpdir)
+
+            # Extract tar archive
+            with tarfile.open(path, 'r') as tar:
+                tar.extractall(tmpdir)
+
+            # Find the extracted folder (should be only one)
+            extracted_folders = [d for d in tmpdir.iterdir() if d.is_dir()]
+
+            if len(extracted_folders) == 0:
+                raise ValueError(f"No folder found in archive: {path}")
+            elif len(extracted_folders) > 1:
+                raise ValueError(f"Multiple folders found in archive: {path}")
+
+            data_folder = extracted_folders[0]
+
+            # Load from folder structure
+            adata = load_from_folder(data_folder)
+
+        return adata
+
+    except tarfile.ReadError as e:
         raise ValueError(
-            f"Invalid file extension. Only '.scb' is supported.\n"
-            f"Got: {path.suffix}\n"
-            f"Example: sb.read('data.scb')"
+            f"File is not a valid tar archive: {path}\n"
+            f"Expected a .scb file (tar archive format).\n"
+            f"Error: {str(e)}"
         )
-
-    # Extract and load from .scb archive
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir = Path(tmpdir)
-
-        # Extract tar archive
-        with tarfile.open(path, 'r') as tar:
-            tar.extractall(tmpdir)
-
-        # Find the extracted folder (should be only one)
-        extracted_folders = [d for d in tmpdir.iterdir() if d.is_dir()]
-
-        if len(extracted_folders) == 0:
-            raise ValueError(f"No folder found in archive: {path}")
-        elif len(extracted_folders) > 1:
-            raise ValueError(f"Multiple folders found in archive: {path}")
-
-        data_folder = extracted_folders[0]
-
-        # Load from folder structure
-        adata = load_from_folder(data_folder)
-
-    return adata

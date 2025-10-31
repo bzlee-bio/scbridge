@@ -119,10 +119,10 @@ sb.write(adata, "data.scb", overwrite=True)
 ```
 
 #### `scbridge.read(path)`
-Load AnnData from .scb file.
+Load AnnData from .scb file (or any tar archive).
 
 **Parameters:**
-- `path` (str): Path to .scb file
+- `path` (str): Path to .scb file (also supports legacy .scbridge, .tar formats)
 
 **Returns:**
 - `adata` (AnnData): Loaded AnnData object
@@ -130,6 +130,8 @@ Load AnnData from .scb file.
 **Example:**
 ```python
 adata = sb.read("data.scb")
+# Also works with legacy formats:
+adata = sb.read("data.scbridge")
 ```
 
 ### R
