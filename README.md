@@ -8,7 +8,7 @@
 
 ## Overview
 
-scBridge provides a universal tar-based format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
+scBridge provides a universal `.scb` format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
 
 **Key Features:**
 - ✅ **Complete data preservation** - All 10 AnnData components (X, obs, var, obsm, varm, obsp, varp, layers, uns, raw)
@@ -21,18 +21,18 @@ scBridge provides a universal tar-based format for storing single-cell RNA-seq d
 
 ### Python
 ```bash
-pip install scbridge
+pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
 ```
 
 ### R
 ```R
 # Install from GitHub
-devtools::install_github("yourusername/scBridge")
+devtools::install_github("bzlee-bio/scBridge")
 ```
 
 ## Quick Start
 
-### Python → tar → R
+### Python → .scb → R
 
 **Python (save):**
 ```python
@@ -48,8 +48,8 @@ sc.pp.pca(adata)
 sc.pp.neighbors(adata)
 sc.tl.umap(adata)
 
-# Save to tar (includes ALL components)
-sb.write(adata, "pbmc_data.tar")
+# Save to .scb (includes ALL components)
+sb.write(adata, "pbmc_data.scb")
 ```
 
 **R (load):**
@@ -58,7 +58,7 @@ library(scBridge)
 library(Seurat)
 
 # Load as Seurat
-seurat <- read("pbmc_data.tar", output = "Seurat")
+seurat <- read("pbmc_data.scb", output = "Seurat")
 print(seurat)
 
 # All components preserved:
@@ -68,7 +68,7 @@ print(seurat)
 # - Neighbor graphs
 ```
 
-### R → tar → Python
+### R → .scb → Python
 
 **R (save):**
 ```R
@@ -83,8 +83,8 @@ seurat <- ScaleData(seurat)
 seurat <- RunPCA(seurat)
 seurat <- RunUMAP(seurat, dims = 1:30)
 
-# Save to tar
-write(seurat, "pbmc_data.tar")
+# Save to .scb
+write(seurat, "pbmc_data.scb")
 ```
 
 **Python (load):**
@@ -92,7 +92,7 @@ write(seurat, "pbmc_data.tar")
 import scbridge as sb
 
 # Load as AnnData
-adata = sb.read("pbmc_data.tar")
+adata = sb.read("pbmc_data.scb")
 print(adata)
 
 # All Seurat reductions loaded to obsm
@@ -104,55 +104,55 @@ print(adata)
 ### Python
 
 #### `scbridge.write(adata, path, overwrite=False)`
-Save AnnData to tar archive.
+Save AnnData to .scb file.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str): Output tar file path
+- `path` (str): Output .scb file path
 - `overwrite` (bool): Whether to overwrite existing file (default: False)
 
 **Example:**
 ```python
 import scbridge as sb
-sb.write(adata, "data.tar")
-sb.write(adata, "data.tar", overwrite=True)
+sb.write(adata, "data.scb")
+sb.write(adata, "data.scb", overwrite=True)
 ```
 
 #### `scbridge.read(path)`
-Load AnnData from tar archive.
+Load AnnData from .scb file.
 
 **Parameters:**
-- `path` (str): Path to tar file
+- `path` (str): Path to .scb file
 
 **Returns:**
 - `adata` (AnnData): Loaded AnnData object
 
 **Example:**
 ```python
-adata = sb.read("data.tar")
+adata = sb.read("data.scb")
 ```
 
 ### R
 
 #### `write(object, path, overwrite = FALSE)`
-Save Seurat or SingleCellExperiment to tar archive.
+Save Seurat or SingleCellExperiment to .scb file.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
-- `path` (character): Output tar file path
+- `path` (character): Output .scb file path
 - `overwrite` (logical): Whether to overwrite existing file
 
 **Example:**
 ```R
-write(seurat, "data.tar")
-write(sce, "data.tar", overwrite = TRUE)
+write(seurat, "data.scb")
+write(sce, "data.scb", overwrite = TRUE)
 ```
 
 #### `read(path, output = c("Seurat", "SCE"))`
-Load data from tar archive.
+Load data from .scb file.
 
 **Parameters:**
-- `path` (character): Path to tar file
+- `path` (character): Path to .scb file
 - `output` (character): Output format ("Seurat" or "SCE")
 
 **Returns:**
@@ -160,8 +160,8 @@ Load data from tar archive.
 
 **Example:**
 ```R
-seurat <- read("data.tar", output = "Seurat")
-sce <- read("data.tar", output = "SCE")
+seurat <- read("data.scb", output = "Seurat")
+sce <- read("data.scb", output = "SCE")
 ```
 
 ## What Gets Saved?
@@ -183,13 +183,13 @@ scBridge preserves **ALL** AnnData components:
 
 ## File Format
 
-scBridge uses a tar archive containing a standardized folder structure:
+scBridge uses a .scb file (tar archive) containing a standardized folder structure:
 
 ```
-data.tar
+data.scb
 └── dataset/
     ├── manifest.json           # Metadata
-    ├── expression.mtx.gz       # Main expression (sparse)
+    ├── expression.mtx          # Main expression (sparse)
     ├── cells.parquet           # Cell metadata
     ├── genes.parquet           # Gene metadata
     ├── embeddings/             # PCA, UMAP, etc.
@@ -212,7 +212,7 @@ For 1M cells × 20K genes dataset:
 
 | Format | File Size | Save Time | Load Time |
 |--------|-----------|-----------|-----------|
-| scBridge (tar) | 600 MB | 15-20s | 5-8s |
+| scBridge (.scb) | 600 MB | 15-20s | 5-8s |
 | H5AD | 800 MB | 10-15s | 8-12s |
 | RDS | 1.2 GB | 30-40s | 15-20s |
 | CSV | 4+ GB | 120s+ | 180s+ |
@@ -241,15 +241,15 @@ See [examples/](examples/) directory for:
 - R → Python workflows
 - Large dataset handling
 - Advanced usage
-
+<!-- 
 ## Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md). -->
 
 ## License
 
 MIT License - see [LICENSE](LICENSE)
-
+<!-- 
 ## Citation
 
 If you use scBridge in your research, please cite:
@@ -261,10 +261,10 @@ If you use scBridge in your research, please cite:
   year = {2025},
   url = {https://github.com/yourusername/scbridge}
 }
-```
-
+``` -->
+<!-- 
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/scbridge/issues)
 - **Documentation**: [Read the Docs](https://scbridge.readthedocs.io)
-- **Questions**: [Discussions](https://github.com/yourusername/scbridge/discussions)
+- **Questions**: [Discussions](https://github.com/yourusername/scbridge/discussions) -->

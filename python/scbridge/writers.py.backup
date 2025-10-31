@@ -152,8 +152,8 @@ def save_to_folder(adata: ad.AnnData,
         obsp_dir.mkdir(exist_ok=True)
 
         for key in adata.obsp.keys():
-            graph_file = f"{key}.mtx"  # No gzip - too slow
-            save_mtx(adata.obsp[key], obsp_dir / graph_file, compress=False)
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
+            save_mtx(adata.obsp[key], obsp_dir / graph_file, compress=compress)
             saved_files[f'obsp_{key}'] = f"obsp/{graph_file}"
 
     # =========================================================================
@@ -164,8 +164,8 @@ def save_to_folder(adata: ad.AnnData,
         varp_dir.mkdir(exist_ok=True)
 
         for key in adata.varp.keys():
-            graph_file = f"{key}.mtx"  # No gzip - too slow
-            save_mtx(adata.varp[key], varp_dir / graph_file, compress=False)
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
+            save_mtx(adata.varp[key], varp_dir / graph_file, compress=compress)
             saved_files[f'varp_{key}'] = f"varp/{graph_file}"
 
     # =========================================================================
@@ -176,7 +176,7 @@ def save_to_folder(adata: ad.AnnData,
         layers_dir.mkdir(exist_ok=True)
 
         for key in adata.layers.keys():
-            layer_file = f"{key}.mtx"  # No gzip - too slow
+            layer_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
 
             # Transpose for R (genes × cells)
             if sp.issparse(adata.layers[key]):
@@ -184,7 +184,7 @@ def save_to_folder(adata: ad.AnnData,
             else:
                 layer_transposed = sp.csr_matrix(adata.layers[key].T)
 
-            save_mtx(layer_transposed, layers_dir / layer_file, compress=False)
+            save_mtx(layer_transposed, layers_dir / layer_file, compress=compress)
             saved_files[f'layer_{key}'] = f"layers/{layer_file}"
 
     # =========================================================================

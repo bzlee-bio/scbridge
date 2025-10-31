@@ -1,13 +1,13 @@
-# Main I/O module - Simple API for writing and reading data in tar format
+# Main I/O module - Simple API for writing and reading data in .scb format
 # Part of the scBridge R package
 
-#' Write single-cell data to tar file
+#' Write single-cell data to .scb file
 #'
-#' Saves Seurat or SingleCellExperiment objects to tar format.
+#' Saves Seurat or SingleCellExperiment objects to .scb format.
 #' Works seamlessly with Python (loads as AnnData).
 #'
 #' @param object Seurat or SingleCellExperiment object
-#' @param path Output tar file path (e.g., "data.tar")
+#' @param path Output .scb file path (e.g., "data.scb")
 #' @param overwrite Whether to overwrite existing file (default: FALSE)
 #' @param compress Whether to compress MTX files inside tar (default: TRUE)
 #'
@@ -17,10 +17,10 @@
 #' library(scBridge)
 #'
 #' # Save Seurat object
-#' write(seurat_obj, "data.tar")
+#' write(seurat_obj, "data.scb")
 #'
 #' # Save SingleCellExperiment object
-#' write(sce_obj, "data.tar")
+#' write(sce_obj, "data.scb")
 #' }
 #'
 #' @export
@@ -62,11 +62,11 @@ write <- function(object, path, overwrite = FALSE, compress = TRUE) {
 }
 
 
-#' Read single-cell data from tar file
+#' Read single-cell data from .scb file
 #'
-#' Loads data from tar format and converts to Seurat or SingleCellExperiment.
+#' Loads data from .scb format and converts to Seurat or SingleCellExperiment.
 #'
-#' @param path Path to tar file
+#' @param path Path to .scb file
 #' @param output Output format: "Seurat" or "SCE" (default: "Seurat")
 #'
 #' @return Seurat or SingleCellExperiment object
@@ -76,10 +76,10 @@ write <- function(object, path, overwrite = FALSE, compress = TRUE) {
 #' library(scBridge)
 #'
 #' # Load as Seurat
-#' seurat_obj <- read("data.tar", output = "Seurat")
+#' seurat_obj <- read("data.scb", output = "Seurat")
 #'
 #' # Load as SingleCellExperiment
-#' sce_obj <- read("data.tar", output = "SCE")
+#' sce_obj <- read("data.scb", output = "SCE")
 #' }
 #'
 #' @export
@@ -122,10 +122,10 @@ read <- function(path, output = "Seurat") {
 }
 
 
-#' Write components list to tar file (advanced usage)
+#' Write components list to .scb file (advanced usage)
 #'
 #' @param components Named list with all components
-#' @param path Output tar file path
+#' @param path Output .scb file path
 #' @param overwrite Whether to overwrite existing file
 #' @param compress Whether to compress MTX files
 #' @export
@@ -158,9 +158,9 @@ write_components <- function(components, path, overwrite = FALSE, compress = TRU
 }
 
 
-#' Read components list from tar file (advanced usage)
+#' Read components list from .scb file (advanced usage)
 #'
-#' @param path Path to tar file
+#' @param path Path to .scb file
 #' @return Named list with all components
 #' @export
 read_components <- function(path) {

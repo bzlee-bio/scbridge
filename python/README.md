@@ -26,11 +26,11 @@ import scbridge as sb
 # Load your data
 adata = ad.read_h5ad("data.h5ad")
 
-# Save to tar format (works with R!)
-sb.write(adata, "data.tar")
+# Save to .scb format (works with R!)
+sb.write(adata, "data.scb")
 
 # Load back
-adata = sb.read("data.tar")
+adata = sb.read("data.scb")
 ```
 
 ## Features
@@ -54,7 +54,7 @@ adata = sb.read("data.tar")
 - **Efficient storage**:
   - MTX format for sparse matrices (universal compatibility)
   - Parquet format for metadata (preserves dtypes, 10-50x faster than CSV)
-  - Uncompressed tar for fast extraction (~2-3s)
+  - Uncompressed tar archive for fast extraction (~2-3s)
 
 - **Large dataset support**: Optimized for 1M+ cells
 
@@ -66,18 +66,18 @@ adata = sb.read("data.tar")
 sb.write(adata, path, overwrite=False, compress=True)
 ```
 
-Save AnnData object to tar file.
+Save AnnData object to .scb file.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str or Path): Output tar file path
+- `path` (str or Path): Output .scb file path
 - `overwrite` (bool): Whether to overwrite existing file (default: False)
 - `compress` (bool): Whether to compress MTX files inside tar (default: True)
 
 **Example:**
 ```python
-sb.write(adata, "data.tar")
-sb.write(adata, "data.tar", overwrite=True)
+sb.write(adata, "data.scb")
+sb.write(adata, "data.scb", overwrite=True)
 ```
 
 ### read()
@@ -86,28 +86,28 @@ sb.write(adata, "data.tar", overwrite=True)
 adata = sb.read(path)
 ```
 
-Load AnnData object from tar file.
+Load AnnData object from .scb file.
 
 **Parameters:**
-- `path` (str or Path): Path to tar file
+- `path` (str or Path): Path to .scb file
 
 **Returns:**
 - `AnnData`: Reconstructed AnnData object
 
 **Example:**
 ```python
-adata = sb.read("data.tar")
+adata = sb.read("data.scb")
 ```
 
 ## File Format
 
-Inside the tar archive:
+Inside the .scb archive:
 
 ```
-data.tar containing:
+data.scb containing:
   data/
   ├── manifest.json           # Metadata about saved components
-  ├── matrix.mtx.gz           # X (expression matrix, genes × cells)
+  ├── matrix.mtx              # X (expression matrix, genes × cells)
   ├── barcodes.tsv.gz         # Cell IDs
   ├── features.tsv.gz         # Gene IDs
   ├── obs.parquet             # Cell metadata
@@ -117,12 +117,12 @@ data.tar containing:
   │   └── X_umap.parquet
   ├── varm/                   # Gene embeddings (if any)
   ├── obsp/                   # Cell-cell graphs
-  │   ├── distances.mtx.gz
-  │   └── connectivities.mtx.gz
+  │   ├── distances.mtx
+  │   └── connectivities.mtx
   ├── varp/                   # Gene-gene graphs (if any)
   ├── layers/                 # Additional matrices (if any)
   ├── raw/                    # Raw data (if present)
-  │   ├── matrix.mtx.gz
+  │   ├── matrix.mtx
   │   ├── features.tsv.gz
   │   └── var.parquet
   └── uns.json                # Unstructured metadata
@@ -138,14 +138,14 @@ import anndata as ad
 import scbridge as sb
 
 adata = ad.read_h5ad("data.h5ad")
-sb.write(adata, "data.tar")
+sb.write(adata, "data.scb")
 ```
 
 ```r
 # R: Load as Seurat
 library(scBridge)
 
-seurat_obj <- read("data.tar", output = "Seurat")
+seurat_obj <- read("data.scb", output = "Seurat")
 ```
 
 ### R to Python
@@ -155,14 +155,14 @@ seurat_obj <- read("data.tar", output = "Seurat")
 library(scBridge)
 library(Seurat)
 
-write(seurat_obj, "data.tar")
+write(seurat_obj, "data.scb")
 ```
 
 ```python
 # Python: Load
 import scbridge as sb
 
-adata = sb.read("data.tar")
+adata = sb.read("data.scb")
 ```
 
 ## Requirements

@@ -27,14 +27,14 @@ devtools::install(".")
 library(scBridge)
 library(Seurat)
 
-# Save Seurat object to tar format (works with Python!)
-write(seurat_obj, "data.tar")
+# Save Seurat object to .scb format (works with Python!)
+write(seurat_obj, "data.scb")
 
 # Load back as Seurat
-seurat_obj <- read("data.tar", output = "Seurat")
+seurat_obj <- read("data.scb", output = "Seurat")
 
 # Load as SingleCellExperiment
-sce_obj <- read("data.tar", output = "SCE")
+sce_obj <- read("data.scb", output = "SCE")
 ```
 
 ## Features
@@ -57,7 +57,7 @@ sce_obj <- read("data.tar", output = "SCE")
 - **Efficient storage**:
   - MTX format for sparse matrices (universal compatibility)
   - Parquet format for metadata (10-50x faster than CSV)
-  - Uncompressed tar for fast extraction (~2-3s)
+  - Uncompressed tar archive for fast extraction (~2-3s)
 
 - **Large dataset support**: Optimized for 1M+ cells
 
@@ -69,11 +69,11 @@ sce_obj <- read("data.tar", output = "SCE")
 write(object, path, overwrite = FALSE, compress = TRUE)
 ```
 
-Save Seurat or SingleCellExperiment object to tar file.
+Save Seurat or SingleCellExperiment object to .scb file.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
-- `path` (character): Output tar file path
+- `path` (character): Output .scb file path
 - `overwrite` (logical): Whether to overwrite existing file (default: FALSE)
 - `compress` (logical): Whether to compress MTX files inside tar (default: TRUE)
 
@@ -83,10 +83,10 @@ library(Seurat)
 library(scBridge)
 
 # Save Seurat object
-write(seurat_obj, "data.tar")
+write(seurat_obj, "data.scb")
 
 # Overwrite existing file
-write(seurat_obj, "data.tar", overwrite = TRUE)
+write(seurat_obj, "data.scb", overwrite = TRUE)
 ```
 
 ### read()
@@ -96,10 +96,10 @@ seurat_obj <- read(path, output = "Seurat")
 sce_obj <- read(path, output = "SCE")
 ```
 
-Load data from tar file as Seurat or SingleCellExperiment.
+Load data from .scb file as Seurat or SingleCellExperiment.
 
 **Parameters:**
-- `path` (character): Path to tar file
+- `path` (character): Path to .scb file
 - `output` (character): Output format - "Seurat" or "SCE" (default: "Seurat")
 
 **Returns:**
@@ -108,21 +108,21 @@ Load data from tar file as Seurat or SingleCellExperiment.
 **Examples:**
 ```r
 # Load as Seurat
-seurat_obj <- read("data.tar", output = "Seurat")
+seurat_obj <- read("data.scb", output = "Seurat")
 
 # Load as SingleCellExperiment
-sce_obj <- read("data.tar", output = "SCE")
+sce_obj <- read("data.scb", output = "SCE")
 ```
 
 ## File Format
 
-Inside the tar archive:
+Inside the .scb archive:
 
 ```
-data.tar containing:
+data.scb containing:
   data/
   ├── manifest.json           # Metadata about saved components
-  ├── matrix.mtx.gz           # Expression matrix (genes × cells)
+  ├── matrix.mtx              # Expression matrix (genes × cells)
   ├── barcodes.tsv.gz         # Cell IDs
   ├── features.tsv.gz         # Gene IDs
   ├── obs.parquet             # Cell metadata
@@ -132,12 +132,12 @@ data.tar containing:
   │   └── X_umap.parquet
   ├── varm/                   # Gene embeddings (if any)
   ├── obsp/                   # Cell-cell graphs
-  │   ├── distances.mtx.gz
-  │   └── connectivities.mtx.gz
+  │   ├── distances.mtx
+  │   └── connectivities.mtx
   ├── varp/                   # Gene-gene graphs (if any)
   ├── layers/                 # Additional assays (if any)
   ├── raw/                    # Raw data (if present)
-  │   ├── matrix.mtx.gz
+  │   ├── matrix.mtx
   │   ├── features.tsv.gz
   │   └── var.parquet
   └── uns.json                # Unstructured metadata
@@ -152,14 +152,14 @@ data.tar containing:
 library(scBridge)
 library(Seurat)
 
-write(seurat_obj, "data.tar")
+write(seurat_obj, "data.scb")
 ```
 
 ```python
 # Python: Load as AnnData
 import scbridge as sb
 
-adata = sb.read("data.tar")
+adata = sb.read("data.scb")
 ```
 
 ### Python to R
@@ -170,14 +170,14 @@ import anndata as ad
 import scbridge as sb
 
 adata = ad.read_h5ad("data.h5ad")
-sb.write(adata, "data.tar")
+sb.write(adata, "data.scb")
 ```
 
 ```r
 # R: Load as Seurat
 library(scBridge)
 
-seurat_obj <- read("data.tar", output = "Seurat")
+seurat_obj <- read("data.scb", output = "Seurat")
 ```
 
 ## Requirements
@@ -218,10 +218,10 @@ components <- extract_components_from_seurat(seurat_obj)
 components$uns$custom_info <- "my_data"
 
 # Save components
-write_components(components, "data.tar")
+write_components(components, "data.scb")
 
 # Load components
-components <- read_components("data.tar")
+components <- read_components("data.scb")
 
 # Convert to Seurat
 seurat_obj <- create_seurat_from_components(components)
