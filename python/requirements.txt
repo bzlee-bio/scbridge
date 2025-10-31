@@ -1,0 +1,5 @@
+anndata>=0.8.0
+pandas>=1.5.0
+numpy>=1.21.0
+scipy>=1.7.0
+pyarrow>=10.0.0

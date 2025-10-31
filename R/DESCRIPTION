@@ -1,0 +1,32 @@
+Package: scBridge
+Type: Package
+Title: Cross-Platform Single-Cell RNA-Seq Data Storage
+Version: 1.0.0
+Authors@R: c(
+    person("scBridge", "Contributors", role = c("aut", "cre"),
+           email = "noreply@example.com")
+    )
+Description: Simple, efficient package for saving and loading single-cell RNA-seq
+    data in a format that works seamlessly with both R (Seurat/SingleCellExperiment)
+    and Python (AnnData). Preserves all data components including expression matrices,
+    metadata, embeddings, and graphs.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.2.0
+Depends:
+    R (>= 4.0.0)
+Imports:
+    Matrix,
+    arrow,
+    jsonlite,
+    tools,
+    utils
+Suggests:
+    Seurat,
+    SingleCellExperiment,
+    SummarizedExperiment,
+    S4Vectors,
+    testthat (>= 3.0.0)
+URL: https://github.com/YOUR_USERNAME/scbridge
+BugReports: https://github.com/YOUR_USERNAME/scbridge/issues
