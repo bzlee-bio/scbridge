@@ -57,7 +57,7 @@ sce_obj <- read("data.scb", output = "SCE")
 - **Efficient storage**:
   - MTX format for sparse matrices (universal compatibility)
   - Parquet format for metadata (10-50x faster than CSV)
-  - Uncompressed tar archive for fast extraction (~2-3s)
+  - Direct folder access (no extraction needed)
 
 - **Large dataset support**: Optimized for 1M+ cells
 
@@ -69,13 +69,13 @@ sce_obj <- read("data.scb", output = "SCE")
 write(object, path, overwrite = FALSE, compress = TRUE)
 ```
 
-Save Seurat or SingleCellExperiment object to .scb file.
+Save Seurat or SingleCellExperiment object to .scb folder.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
-- `path` (character): Output .scb file path
-- `overwrite` (logical): Whether to overwrite existing file (default: FALSE)
-- `compress` (logical): Whether to compress MTX files inside tar (default: TRUE)
+- `path` (character): Output .scb folder path
+- `overwrite` (logical): Whether to overwrite existing folder (default: FALSE)
+- `compress` (logical): Whether to compress MTX files (default: TRUE)
 
 **Examples:**
 ```r
@@ -96,10 +96,10 @@ seurat_obj <- read(path, output = "Seurat")
 sce_obj <- read(path, output = "SCE")
 ```
 
-Load data from .scb file as Seurat or SingleCellExperiment.
+Load data from .scb folder (or legacy tar archive) as Seurat or SingleCellExperiment.
 
 **Parameters:**
-- `path` (character): Path to .scb file
+- `path` (character): Path to .scb folder (also supports legacy tar archives)
 - `output` (character): Output format - "Seurat" or "SCE" (default: "Seurat")
 
 **Returns:**
@@ -116,13 +116,12 @@ sce_obj <- read("data.scb", output = "SCE")
 
 ## File Format
 
-Inside the .scb archive:
+The .scb folder structure:
 
 ```
-data.scb containing:
-  data/
-  ├── manifest.json           # Metadata about saved components
-  ├── matrix.mtx              # Expression matrix (genes × cells)
+data.scb/
+├── manifest.json           # Metadata about saved components
+├── matrix.mtx              # Expression matrix (genes × cells)
   ├── barcodes.tsv.gz         # Cell IDs
   ├── features.tsv.gz         # Gene IDs
   ├── obs.parquet             # Cell metadata

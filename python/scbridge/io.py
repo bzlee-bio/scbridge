@@ -17,7 +17,7 @@ def write(adata: ad.AnnData,
           overwrite: bool = False,
           compress: bool = True) -> None:
     """
-    Write AnnData object to .scb file
+    Write AnnData object to .scb folder
 
     Saves ALL 10 components of AnnData:
     - X (expression matrix)
@@ -41,11 +41,11 @@ def write(adata: ad.AnnData,
     adata : AnnData
         AnnData object to save
     path : str or Path
-        Output .scb file path (e.g., "data.scb")
+        Output .scb folder path (e.g., "data.scb")
     overwrite : bool
-        Whether to overwrite existing file (default: False)
+        Whether to overwrite existing folder (default: False)
     compress : bool
-        Whether to compress MTX files inside tar (default: True)
+        Whether to compress MTX files (default: True)
 
     Example:
     --------
@@ -64,43 +64,25 @@ def write(adata: ad.AnnData,
             f"Example: sb.write(adata, 'data.scb')"
         )
 
-    # Check if file exists
+    # Check if folder exists
     if path.exists() and not overwrite:
         raise FileExistsError(
-            f"File already exists: {path}\n"
+            f"Folder already exists: {path}\n"
             f"Use overwrite=True to replace it."
         )
 
-    # Create temporary folder for data
-    folder_path = path.parent / path.stem
+    # Remove existing folder if overwrite is True
+    if path.exists() and overwrite:
+        shutil.rmtree(path)
 
-    print(f"  Saving data to folder...", flush=True)
-    save_to_folder(adata, folder_path, compress=compress)
-    print(f"  ✓ Data saved", flush=True)
-
-    # Create uncompressed tar archive (fast - uses system tar command)
-    print(f"  Creating .scb archive...", flush=True)
-    import subprocess
-
-    result = subprocess.run(
-        ['tar', '-cf', str(path), '-C', str(folder_path.parent), folder_path.name],
-        capture_output=True,
-        text=True
-    )
-
-    if result.returncode == 0:
-        # Remove folder after successful archive creation
-        shutil.rmtree(folder_path)
-        archive_size = path.stat().st_size / 1024 / 1024 / 1024  # GB
-        print(f"  ✓ Archive created: {path.name} ({archive_size:.2f} GB)", flush=True)
-    else:
-        print(f"  ⚠ Archive creation failed: {result.stderr}", flush=True)
-        print(f"  Keeping folder: {folder_path}", flush=True)
+    print(f"  Saving data to {path.name}...", flush=True)
+    save_to_folder(adata, path, compress=compress)
+    print(f"  ✓ Data saved to {path.name}", flush=True)
 
 
 def read(path: Union[str, Path]) -> ad.AnnData:
     """
-    Read AnnData object from .scb file (or any tar archive)
+    Read AnnData object from .scb folder (or legacy tar archive)
 
     Loads ALL 10 components of AnnData:
     - X (expression matrix)
@@ -117,8 +99,7 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     Parameters:
     -----------
     path : str or Path
-        Path to .scb file or any valid tar archive in scBridge format
-        (supports .scb, .scbridge, .tar, or no extension)
+        Path to .scb folder (also supports legacy tar archives)
 
     Returns:
     --------
@@ -128,9 +109,8 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     --------
     >>> import scbridge as sb
     >>> adata = sb.read("data.scb")
-    >>> # Also works with legacy formats:
+    >>> # Also works with legacy tar archives:
     >>> adata = sb.read("data.scbridge")
-    >>> adata = sb.read("data.tar")
     >>> print(adata)
     """
     path = Path(path)
@@ -138,8 +118,17 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
 
-    # Try to open as tar archive - will raise an error if not a valid tar file
+    # Check if it's a folder or a tar archive
+    if path.is_dir():
+        # It's a folder - load directly
+        print(f"  Loading data from {path.name}...", flush=True)
+        adata = load_from_folder(path)
+        print(f"  ✓ Data loaded", flush=True)
+        return adata
+
+    # It's a file - try to open as tar archive (for backward compatibility)
     try:
+        print(f"  Extracting legacy tar archive...", flush=True)
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
@@ -158,13 +147,15 @@ def read(path: Union[str, Path]) -> ad.AnnData:
             data_folder = extracted_folders[0]
 
             # Load from folder structure
+            print(f"  Loading data...", flush=True)
             adata = load_from_folder(data_folder)
+            print(f"  ✓ Data loaded", flush=True)
 
         return adata
 
     except tarfile.ReadError as e:
         raise ValueError(
-            f"File is not a valid tar archive: {path}\n"
-            f"Expected a .scb file (tar archive format).\n"
+            f"Path is not a valid .scb folder or tar archive: {path}\n"
+            f"Expected either a .scb folder or a legacy tar archive.\n"
             f"Error: {str(e)}"
         )

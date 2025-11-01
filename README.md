@@ -8,14 +8,15 @@
 
 ## Overview
 
-scBridge provides a universal `.scb` format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
+scBridge provides a universal `.scb` folder format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
 
 **Key Features:**
 - ✅ **Complete data preservation** - All 10 AnnData components (X, obs, var, obsm, varm, obsp, varp, layers, uns, raw)
 - ✅ **Cross-platform** - Python ↔ R seamless conversion
 - ✅ **Efficient** - Parquet + MTX format, ~3x smaller than CSV
-- ✅ **Fast** - 2-3s tar extraction + 1-2s load for 1M cells
+- ✅ **Fast** - Direct folder access, instant loading (no extraction needed)
 - ✅ **Simple API** - Just `write()` and `read()`
+- ✅ **Easy to inspect** - Standard folder structure, no tar unpacking required
 
 ## Installation
 
@@ -104,12 +105,12 @@ print(adata)
 ### Python
 
 #### `scbridge.write(adata, path, overwrite=False)`
-Save AnnData to .scb file.
+Save AnnData to .scb folder.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str): Output .scb file path
-- `overwrite` (bool): Whether to overwrite existing file (default: False)
+- `path` (str): Output .scb folder path
+- `overwrite` (bool): Whether to overwrite existing folder (default: False)
 
 **Example:**
 ```python
@@ -119,10 +120,10 @@ sb.write(adata, "data.scb", overwrite=True)
 ```
 
 #### `scbridge.read(path)`
-Load AnnData from .scb file (or any tar archive).
+Load AnnData from .scb folder (or legacy tar archive).
 
 **Parameters:**
-- `path` (str): Path to .scb file (also supports legacy .scbridge, .tar formats)
+- `path` (str): Path to .scb folder (also supports legacy tar archives for backward compatibility)
 
 **Returns:**
 - `adata` (AnnData): Loaded AnnData object
@@ -130,7 +131,7 @@ Load AnnData from .scb file (or any tar archive).
 **Example:**
 ```python
 adata = sb.read("data.scb")
-# Also works with legacy formats:
+# Also works with legacy tar archives:
 adata = sb.read("data.scbridge")
 ```
 
@@ -185,28 +186,41 @@ scBridge preserves **ALL** AnnData components:
 
 ## File Format
 
-scBridge uses a .scb file (tar archive) containing a standardized folder structure:
+scBridge uses a `.scb` folder (directory) with a standardized structure:
 
 ```
-data.scb
-└── dataset/
-    ├── manifest.json           # Metadata
-    ├── expression.mtx          # Main expression (sparse)
-    ├── cells.parquet           # Cell metadata
-    ├── genes.parquet           # Gene metadata
-    ├── embeddings/             # PCA, UMAP, etc.
-    ├── graphs/                 # Neighbor graphs
-    ├── layers/                 # Additional matrices
-    ├── raw/                    # Raw counts
-    ├── gene_embeddings/        # Gene-level data
-    ├── gene_graphs/            # Gene-gene graphs
-    └── metadata.json           # Unstructured data
+data.scb/
+├── manifest.json           # Metadata
+├── matrix.mtx              # Main expression (sparse)
+├── barcodes.tsv.gz         # Cell IDs
+├── features.tsv.gz         # Gene IDs
+├── obs.parquet             # Cell metadata
+├── var.parquet             # Gene metadata
+├── obsm/                   # Cell embeddings
+│   ├── X_pca.parquet
+│   └── X_umap.parquet
+├── obsp/                   # Cell-cell graphs
+│   ├── distances.mtx
+│   └── connectivities.mtx
+├── varm/                   # Gene embeddings (if any)
+├── varp/                   # Gene-gene graphs (if any)
+├── layers/                 # Additional matrices (if any)
+├── raw/                    # Raw counts (if any)
+│   ├── matrix.mtx
+│   └── var.parquet
+└── uns.json                # Unstructured metadata
 ```
 
 **Formats used:**
 - **MTX** - Sparse matrices (expression, graphs)
 - **Parquet** - Tabular data (metadata, embeddings)
 - **JSON** - Unstructured metadata
+
+**Benefits of folder format:**
+- ✅ No extraction needed - instant access
+- ✅ Easy to inspect and debug
+- ✅ Can modify individual files without re-archiving
+- ✅ Works naturally with version control systems
 
 ## Performance
 

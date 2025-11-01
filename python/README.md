@@ -54,7 +54,7 @@ adata = sb.read("data.scb")
 - **Efficient storage**:
   - MTX format for sparse matrices (universal compatibility)
   - Parquet format for metadata (preserves dtypes, 10-50x faster than CSV)
-  - Uncompressed tar archive for fast extraction (~2-3s)
+  - Direct folder access (no extraction needed)
 
 - **Large dataset support**: Optimized for 1M+ cells
 
@@ -66,13 +66,13 @@ adata = sb.read("data.scb")
 sb.write(adata, path, overwrite=False, compress=True)
 ```
 
-Save AnnData object to .scb file.
+Save AnnData object to .scb folder.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str or Path): Output .scb file path
-- `overwrite` (bool): Whether to overwrite existing file (default: False)
-- `compress` (bool): Whether to compress MTX files inside tar (default: True)
+- `path` (str or Path): Output .scb folder path
+- `overwrite` (bool): Whether to overwrite existing folder (default: False)
+- `compress` (bool): Whether to compress MTX files (default: True)
 
 **Example:**
 ```python
@@ -86,10 +86,10 @@ sb.write(adata, "data.scb", overwrite=True)
 adata = sb.read(path)
 ```
 
-Load AnnData object from .scb file.
+Load AnnData object from .scb folder (or legacy tar archive).
 
 **Parameters:**
-- `path` (str or Path): Path to .scb file
+- `path` (str or Path): Path to .scb folder (also supports legacy tar archives)
 
 **Returns:**
 - `AnnData`: Reconstructed AnnData object
@@ -101,13 +101,12 @@ adata = sb.read("data.scb")
 
 ## File Format
 
-Inside the .scb archive:
+The .scb folder structure:
 
 ```
-data.scb containing:
-  data/
-  ├── manifest.json           # Metadata about saved components
-  ├── matrix.mtx              # X (expression matrix, genes × cells)
+data.scb/
+├── manifest.json           # Metadata about saved components
+├── matrix.mtx              # X (expression matrix, genes × cells)
   ├── barcodes.tsv.gz         # Cell IDs
   ├── features.tsv.gz         # Gene IDs
   ├── obs.parquet             # Cell metadata
