@@ -1,46 +1,47 @@
-# scBridge Format Specification v1.0
+# scBridge Format Specification v0.1.2
 
 ## Overview
 
-scBridge uses a folder-based structure packaged in an uncompressed tar archive. This format is designed for:
+scBridge uses a folder-based structure with `.scb` extension. This format is designed for:
 
 - **Cross-platform compatibility**: Works with Python (AnnData) and R (Seurat/SCE)
 - **Complete data preservation**: Saves ALL 10 AnnData components
 - **Efficient storage**: Uses MTX for sparse matrices, Parquet for DataFrames
-- **Fast extraction**: Uncompressed tar extracts in ~2-3 seconds
+- **Direct folder access**: No extraction needed, instant loading
 - **Large dataset support**: Optimized for 1M+ cells
 
-## Archive Structure
+## Folder Structure
 
 ```
-dataset.tar (uncompressed)
-  └── dataset/
-      ├── manifest.json              # Required: Format metadata
-      ├── matrix.mtx.gz              # Required: Main expression matrix
-      ├── barcodes.tsv.gz            # Required: Cell IDs
-      ├── features.tsv.gz            # Required: Gene IDs
-      ├── obs.parquet                # Required: Cell metadata
-      ├── var.parquet                # Optional: Gene metadata
-      ├── obsm/                      # Optional: Cell embeddings folder
-      │   ├── X_pca.parquet
-      │   ├── X_umap.parquet
-      │   └── [embedding_name].parquet
-      ├── varm/                      # Optional: Gene embeddings folder
-      │   └── [embedding_name].parquet
-      ├── obsp/                      # Optional: Cell-cell graphs folder
-      │   ├── distances.mtx.gz
-      │   ├── connectivities.mtx.gz
-      │   └── [graph_name].mtx.gz
-      ├── varp/                      # Optional: Gene-gene graphs folder
-      │   └── [graph_name].mtx.gz
-      ├── layers/                    # Optional: Additional matrices folder
-      │   └── [layer_name].mtx.gz
-      ├── raw/                       # Optional: Raw data folder
-      │   ├── matrix.mtx.gz
-      │   ├── features.tsv.gz
-      │   └── var.parquet
-      └── uns.json                   # Optional: Unstructured metadata
+dataset.scb/
+├── manifest.json              # Required: Format metadata
+├── matrix.mtx                 # Required: Main expression matrix
+├── barcodes.tsv[.gz]          # Required: Cell IDs (optionally gzipped)
+├── features.tsv[.gz]          # Required: Gene IDs (optionally gzipped)
+├── obs.parquet                # Required: Cell metadata
+├── var.parquet                # Optional: Gene metadata
+├── obsm/                      # Optional: Cell embeddings folder
+│   ├── X_pca.parquet
+│   ├── X_umap.parquet
+│   └── [embedding_name].parquet
+├── varm/                      # Optional: Gene embeddings folder
+│   └── [embedding_name].parquet
+├── obsp/                      # Optional: Cell-cell graphs folder
+│   ├── distances.mtx
+│   ├── connectivities.mtx
+│   └── [graph_name].mtx
+├── varp/                      # Optional: Gene-gene graphs folder
+│   └── [graph_name].mtx
+├── layers/                    # Optional: Additional matrices folder
+│   └── [layer_name].mtx
+├── raw/                       # Optional: Raw data folder
+│   ├── matrix.mtx
+│   ├── features.tsv[.gz]      # Optionally gzipped
+│   └── var.parquet
+└── uns.json                   # Optional: Unstructured metadata
 ```
+
+**Note:** Files marked with `[.gz]` may be gzipped depending on the `compress` parameter.
 
 ## File Formats
 
@@ -71,21 +72,21 @@ JSON file containing metadata about the dataset.
     "uns": [<list of uns keys>]
   },
   "files": {
-    "X": "matrix.mtx.gz",
-    "barcodes": "barcodes.tsv.gz",
-    "features": "features.tsv.gz",
+    "X": "matrix.mtx",
+    "barcodes": "barcodes.tsv" or "barcodes.tsv.gz",
+    "features": "features.tsv" or "features.tsv.gz",
     "obs": "obs.parquet",
     // ... mapping of components to file paths
   }
 }
 ```
 
-### 2. matrix.mtx.gz (Required)
+### 2. matrix.mtx (Required)
 
 Main expression matrix in Matrix Market format.
 
 **Specifications:**
-- Format: Matrix Market (MTX), gzip compressed
+- Format: Matrix Market (MTX), uncompressed (no gzip for performance)
 - Orientation: **genes × cells** (transposed for R compatibility)
 - Type: Sparse matrix (CSR/CSC)
 - Will be transposed to **cells × genes** when loaded
@@ -94,15 +95,18 @@ Main expression matrix in Matrix Market format.
 - Python: `scipy.io.mmwrite()`, `scipy.io.mmread()`
 - R: `Matrix::writeMM()`, `Matrix::readMM()`
 
-### 3. barcodes.tsv.gz (Required)
+**Note:** MTX files are not gzipped by default for performance reasons (gzip is 10-100x slower for large matrices).
+
+### 3. barcodes.tsv[.gz] (Required)
 
 Cell IDs (barcodes) file.
 
 **Specifications:**
-- Format: Tab-separated values, gzip compressed
+- Format: Tab-separated values, optionally gzip compressed
 - Columns: Single column with cell IDs
 - No header
 - Order must match matrix columns
+- Extension: `.tsv` or `.tsv.gz` based on `compress` parameter
 
 **Example:**
 ```
@@ -111,15 +115,16 @@ cell_1
 cell_2
 ```
 
-### 4. features.tsv.gz (Required)
+### 4. features.tsv[.gz] (Required)
 
 Gene IDs (features) file.
 
 **Specifications:**
-- Format: Tab-separated values, gzip compressed
+- Format: Tab-separated values, optionally gzip compressed
 - Columns: 3 columns (gene_id, gene_name, feature_type)
 - No header
 - Order must match matrix rows
+- Extension: `.tsv` or `.tsv.gz` based on `compress` parameter
 
 **Example:**
 ```
@@ -179,51 +184,51 @@ Gene embeddings folder.
 - Index: Gene IDs
 - Columns: Named as `<embedding_name>_1`, `<embedding_name>_2`, etc.
 
-### 9. obsp/*.mtx.gz (Optional)
+### 9. obsp/*.mtx (Optional)
 
 Cell-cell graphs folder.
 
 **Specifications:**
-- Each file: One graph (e.g., distances.mtx.gz, connectivities.mtx.gz)
-- Format: Matrix Market (MTX), gzip compressed
+- Each file: One graph (e.g., distances.mtx, connectivities.mtx)
+- Format: Matrix Market (MTX), uncompressed
 - Orientation: **cells × cells**
 - Type: Sparse matrix
 
 **Common graphs:**
-- `distances.mtx.gz`: K-nearest neighbor distances
-- `connectivities.mtx.gz`: K-nearest neighbor connectivities
+- `distances.mtx`: K-nearest neighbor distances
+- `connectivities.mtx`: K-nearest neighbor connectivities
 
-### 10. varp/*.mtx.gz (Optional)
+### 10. varp/*.mtx (Optional)
 
 Gene-gene graphs folder.
 
 **Specifications:**
 - Each file: One gene-gene graph
-- Format: Matrix Market (MTX), gzip compressed
+- Format: Matrix Market (MTX), uncompressed
 - Orientation: **genes × genes**
 - Type: Sparse matrix
 
-### 11. layers/*.mtx.gz (Optional)
+### 11. layers/*.mtx (Optional)
 
 Additional matrices folder.
 
 **Specifications:**
-- Each file: One layer/assay (e.g., raw_counts.mtx.gz)
-- Format: Matrix Market (MTX), gzip compressed
+- Each file: One layer/assay (e.g., raw_counts.mtx)
+- Format: Matrix Market (MTX), uncompressed
 - Orientation: **genes × cells** (transposed for R compatibility)
 - Will be transposed to **cells × genes** when loaded
 
 **Common layers:**
-- `counts.mtx.gz`: Raw counts
-- `logcounts.mtx.gz`: Log-normalized counts
+- `counts.mtx`: Raw counts
+- `logcounts.mtx`: Log-normalized counts
 
 ### 12. raw/ (Optional)
 
 Raw data folder (for adata.raw).
 
 **Contents:**
-- `matrix.mtx.gz`: Raw expression matrix (genes × cells)
-- `features.tsv.gz`: Raw gene IDs
+- `matrix.mtx`: Raw expression matrix (genes × cells)
+- `features.tsv[.gz]`: Raw gene IDs (optionally gzipped)
 - `var.parquet`: Raw gene metadata
 
 **Specifications:**
@@ -258,14 +263,14 @@ Unstructured metadata.
 
 | Component | Storage Format | Notes |
 |-----------|---------------|-------|
-| adata.X | matrix.mtx.gz | Transposed to genes × cells |
+| adata.X | matrix.mtx | Transposed to genes × cells |
 | adata.obs | obs.parquet | Preserves pandas dtypes |
 | adata.var | var.parquet | Preserves pandas dtypes |
 | adata.obsm | obsm/*.parquet | Each key → separate file |
 | adata.varm | varm/*.parquet | Each key → separate file |
-| adata.obsp | obsp/*.mtx.gz | Each key → separate file |
-| adata.varp | varp/*.mtx.gz | Each key → separate file |
-| adata.layers | layers/*.mtx.gz | Each key → separate file, transposed |
+| adata.obsp | obsp/*.mtx | Each key → separate file |
+| adata.varp | varp/*.mtx | Each key → separate file |
+| adata.layers | layers/*.mtx | Each key → separate file, transposed |
 | adata.raw | raw/ folder | Full raw structure |
 | adata.uns | uns.json | JSON-serializable only |
 
@@ -273,70 +278,76 @@ Unstructured metadata.
 
 | Component | Storage Format | Notes |
 |-----------|---------------|-------|
-| counts (assay) | matrix.mtx.gz | Transposed to genes × cells |
+| counts (assay) | matrix.mtx | Transposed to genes × cells |
 | meta.data | obs.parquet | Metadata as Parquet |
 | reductions | obsm/*.parquet | Each reduction → separate file |
-| graphs | obsp/*.mtx.gz | Each graph → separate file |
-| other assays | layers/*.mtx.gz | Each assay → separate file |
+| graphs | obsp/*.mtx | Each graph → separate file |
+| other assays | layers/*.mtx | Each assay → separate file |
 | misc$uns | uns.json | Unstructured metadata |
 
 ### R (SingleCellExperiment) → Storage
 
 | Component | Storage Format | Notes |
 |-----------|---------------|-------|
-| assay(sce, "counts") | matrix.mtx.gz | Transposed to genes × cells |
+| assay(sce, "counts") | matrix.mtx | Transposed to genes × cells |
 | colData(sce) | obs.parquet | Cell metadata |
 | rowData(sce) | var.parquet | Gene metadata |
 | reducedDims(sce) | obsm/*.parquet | Each reducedDim → separate file |
-| metadata(sce)$obsp | obsp/*.mtx.gz | Cell-cell graphs |
+| metadata(sce)$obsp | obsp/*.mtx | Cell-cell graphs |
 | metadata(sce)$varm | varm/*.parquet | Gene embeddings |
-| metadata(sce)$varp | varp/*.mtx.gz | Gene-gene graphs |
-| other assays | layers/*.mtx.gz | Each assay → separate file |
+| metadata(sce)$varp | varp/*.mtx | Gene-gene graphs |
+| other assays | layers/*.mtx | Each assay → separate file |
 | metadata(sce)$uns | uns.json | Unstructured metadata |
 
 ## Compression Strategy
 
-- **TAR archive**: Uncompressed (for fast extraction ~2-3s)
-- **MTX files**: Gzip compressed (*.mtx.gz)
-- **TSV files**: Gzip compressed (*.tsv.gz)
+- **Folder format**: Direct access (no archive extraction needed)
+- **MTX files**: Uncompressed by default (*.mtx) for performance
+- **TSV files**: Optionally gzipped (*.tsv or *.tsv.gz) based on `compress` parameter
 - **Parquet files**: Built-in compression (no .gz)
 - **JSON files**: Uncompressed (small file size)
 
 **Rationale:**
-- Uncompressed tar: Fast extraction is more important than archive size
-- Compressed MTX: Sparse matrices compress very well
+- Folder format: No extraction overhead, instant access
+- Uncompressed MTX: 10-100x faster than gzipped MTX for large matrices
+- Optional TSV compression: User can choose between size and speed
 - Parquet: Already efficient, built-in compression
 
 ## Version Compatibility
 
-**Version 1.0:**
-- Initial release
+**Version 0.1.2 (Beta):**
+- Folder-based format (no tar archive)
 - All 10 AnnData components supported
+- Optional gzip compression for TSV files
 - Python 3.8+ and R 4.0+ compatible
 
+**Legacy support:**
+- Readers support legacy tar archives for backward compatibility
+- Writers only create folder format
+
 **Future versions:**
-- Backward compatible: v2.0 readers can read v1.0 files
-- Forward compatible: v1.0 readers may not support new v2.0 features
+- Backward compatible: Newer readers can read older formats
+- Forward compatible: Older readers may not support new features
 
 ## Performance Characteristics
 
 **Typical 1M cell dataset:**
-- Save time: ~30-60 seconds
-- Load time: ~20-40 seconds
-- Tar extraction: ~2-3 seconds
-- File size: ~600 MB (uncompressed tar)
+- Save time: ~15-20 seconds
+- Load time: ~5-8 seconds
+- No extraction needed (folder format)
+- File size: ~600 MB
 
 **Comparison to alternatives:**
 - h5ad: Similar performance, but doesn't preserve all dtypes
 - CSV: 10-50x slower for large datasets
-- tar.gz: 10-15s extraction time (too slow)
+- Legacy tar: Added extraction overhead (~2-3s)
 
 ## Validation
 
 Readers should validate:
 
 1. **manifest.json exists**: Required file
-2. **Required files exist**: matrix.mtx.gz, barcodes.tsv.gz, features.tsv.gz, obs.parquet
+2. **Required files exist**: matrix.mtx, barcodes.tsv[.gz], features.tsv[.gz], obs.parquet
 3. **Dimensions match**: n_obs and n_vars in manifest match actual data
 4. **Index alignment**: barcodes match obs index, features match var index
 

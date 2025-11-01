@@ -192,8 +192,8 @@ scBridge uses a `.scb` folder (directory) with a standardized structure:
 data.scb/
 ├── manifest.json           # Metadata
 ├── matrix.mtx              # Main expression (sparse)
-├── barcodes.tsv.gz         # Cell IDs
-├── features.tsv.gz         # Gene IDs
+├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
+├── features.tsv[.gz]       # Gene IDs (optionally gzipped)
 ├── obs.parquet             # Cell metadata
 ├── var.parquet             # Gene metadata
 ├── obsm/                   # Cell embeddings
@@ -207,9 +207,12 @@ data.scb/
 ├── layers/                 # Additional matrices (if any)
 ├── raw/                    # Raw counts (if any)
 │   ├── matrix.mtx
+│   ├── features.tsv[.gz]   # Optionally gzipped
 │   └── var.parquet
 └── uns.json                # Unstructured metadata
 ```
+
+**Note:** Files with `[.gz]` may be gzipped depending on the `compress` parameter used during save.
 
 **Formats used:**
 - **MTX** - Sparse matrices (expression, graphs)

@@ -122,25 +122,27 @@ The .scb folder structure:
 data.scb/
 ├── manifest.json           # Metadata about saved components
 ├── matrix.mtx              # Expression matrix (genes × cells)
-  ├── barcodes.tsv.gz         # Cell IDs
-  ├── features.tsv.gz         # Gene IDs
-  ├── obs.parquet             # Cell metadata
-  ├── var.parquet             # Gene metadata
-  ├── obsm/                   # Cell embeddings
-  │   ├── X_pca.parquet
-  │   └── X_umap.parquet
-  ├── varm/                   # Gene embeddings (if any)
-  ├── obsp/                   # Cell-cell graphs
-  │   ├── distances.mtx
-  │   └── connectivities.mtx
-  ├── varp/                   # Gene-gene graphs (if any)
-  ├── layers/                 # Additional assays (if any)
-  ├── raw/                    # Raw data (if present)
-  │   ├── matrix.mtx
-  │   ├── features.tsv.gz
-  │   └── var.parquet
-  └── uns.json                # Unstructured metadata
+├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
+├── features.tsv[.gz]       # Gene IDs (optionally gzipped)
+├── obs.parquet             # Cell metadata
+├── var.parquet             # Gene metadata
+├── obsm/                   # Cell embeddings
+│   ├── X_pca.parquet
+│   └── X_umap.parquet
+├── varm/                   # Gene embeddings (if any)
+├── obsp/                   # Cell-cell graphs
+│   ├── distances.mtx
+│   └── connectivities.mtx
+├── varp/                   # Gene-gene graphs (if any)
+├── layers/                 # Additional assays (if any)
+├── raw/                    # Raw data (if present)
+│   ├── matrix.mtx
+│   ├── features.tsv[.gz]   # Optionally gzipped
+│   └── var.parquet
+└── uns.json                # Unstructured metadata
 ```
+
+**Note:** Files with `[.gz]` may be gzipped depending on the `compress` parameter used during save.
 
 ## Cross-Platform Usage
 
