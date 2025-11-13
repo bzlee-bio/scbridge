@@ -6,7 +6,6 @@
 #' @param components Named list with X, obs, var, obsm, obsp, etc.
 #' @return Seurat object
 #' @export
-#' @importFrom Seurat CreateSeuratObject CreateDimReducObject CreateAssayObject
 create_seurat_from_components <- function(components) {
   if (!requireNamespace("Seurat", quietly = TRUE)) {
     stop("Seurat package required. Install with: install.packages('Seurat')")
