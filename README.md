@@ -27,8 +27,11 @@ pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
 
 ### R
 ```R
-# Install from GitHub
-devtools::install_github("bzlee-bio/scBridge")
+# Install devtools if needed
+install.packages("devtools")
+
+# Install scBridge from GitHub
+devtools::install_github("bzlee-bio/scbridge", subdir = "R")
 ```
 
 ## Quick Start

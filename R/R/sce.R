@@ -6,7 +6,7 @@
 #' @param components Named list with X, obs, var, obsm, obsp, etc.
 #' @return SingleCellExperiment object
 #' @export
-#' @importFrom SingleCellExperiment SingleCellExperiment reducedDim<-
+#' @importFrom SingleCellExperiment SingleCellExperiment reducedDim reducedDim<-
 create_sce_from_components <- function(components) {
   if (!requireNamespace("SingleCellExperiment", quietly = TRUE)) {
     stop("SingleCellExperiment package required. Install with: BiocManager::install('SingleCellExperiment')")
