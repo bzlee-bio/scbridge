@@ -13,7 +13,7 @@ create_seurat_from_components <- function(components) {
 
   # Create Seurat object from count matrix (transpose to genes × cells)
   seurat_obj <- Seurat::CreateSeuratObject(
-    counts = t(components$X),
+    counts = Matrix::t(components$X),
     meta.data = components$obs
   )
 
@@ -47,7 +47,7 @@ create_seurat_from_components <- function(components) {
     for (layer_name in names(components$layers)) {
       # Add as assay layer (transpose to genes × cells)
       seurat_obj[[layer_name]] <- Seurat::CreateAssayObject(
-        counts = t(components$layers[[layer_name]])
+        counts = Matrix::t(components$layers[[layer_name]])
       )
     }
   }
@@ -81,7 +81,7 @@ extract_components_from_seurat <- function(seurat_obj) {
 
   # Get count matrix (transpose from genes × cells to cells × genes)
   default_assay <- Seurat::DefaultAssay(seurat_obj)
-  components$X <- t(Seurat::GetAssayData(seurat_obj, slot = "counts", assay = default_assay))
+  components$X <- Matrix::t(Seurat::GetAssayData(seurat_obj, slot = "counts", assay = default_assay))
 
   # Get cell metadata
   components$obs <- seurat_obj@meta.data
@@ -113,7 +113,7 @@ extract_components_from_seurat <- function(seurat_obj) {
   other_assays <- setdiff(assays, default_assay)
   if (length(other_assays) > 0) {
     for (assay in other_assays) {
-      components$layers[[assay]] <- t(Seurat::GetAssayData(seurat_obj, slot = "counts", assay = assay))
+      components$layers[[assay]] <- Matrix::t(Seurat::GetAssayData(seurat_obj, slot = "counts", assay = assay))
     }
   }
 

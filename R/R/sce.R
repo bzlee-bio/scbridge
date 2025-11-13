@@ -12,18 +12,18 @@ create_sce_from_components <- function(components) {
   }
 
   # Create assays list
-  assays_list <- list(counts = t(components$X))  # Transpose to genes × cells
+  assays_list <- list(counts = Matrix::t(components$X))  # Transpose to genes × cells
 
   # Add layers as additional assays
   if (length(components$layers) > 0) {
     for (layer_name in names(components$layers)) {
-      assays_list[[layer_name]] <- t(components$layers[[layer_name]])
+      assays_list[[layer_name]] <- Matrix::t(components$layers[[layer_name]])
     }
   }
 
   # Add raw counts if present
   if (!is.null(components$raw)) {
-    assays_list$raw_counts <- t(components$raw$X)
+    assays_list$raw_counts <- Matrix::t(components$raw$X)
   }
 
   # Create SCE object
@@ -82,7 +82,14 @@ extract_components_from_sce <- function(sce_obj) {
   components <- list()
 
   # Get count matrix (transpose from genes × cells to cells × genes)
-  components$X <- t(SummarizedExperiment::assay(sce_obj, "counts"))
+  # Handle DelayedArray and other S4 matrix types by ensuring it's a proper matrix
+  counts_matrix <- SummarizedExperiment::assay(sce_obj, "counts")
+  # Use Matrix::t() which handles both regular and sparse matrices
+  if (inherits(counts_matrix, "DelayedArray")) {
+    # For DelayedArray, realize to sparse or dense matrix first
+    counts_matrix <- as(counts_matrix, "sparseMatrix")
+  }
+  components$X <- Matrix::t(counts_matrix)
 
   # Get cell metadata
   components$obs <- as.data.frame(SummarizedExperiment::colData(sce_obj))
@@ -105,14 +112,22 @@ extract_components_from_sce <- function(sce_obj) {
   other_assays <- setdiff(assay_names, c("counts", "raw_counts"))
   if (length(other_assays) > 0) {
     for (assay in other_assays) {
-      components$layers[[assay]] <- t(SummarizedExperiment::assay(sce_obj, assay))
+      layer_matrix <- SummarizedExperiment::assay(sce_obj, assay)
+      if (inherits(layer_matrix, "DelayedArray")) {
+        layer_matrix <- as(layer_matrix, "sparseMatrix")
+      }
+      components$layers[[assay]] <- Matrix::t(layer_matrix)
     }
   }
 
   # Get raw counts if present
   if ("raw_counts" %in% assay_names) {
     components$raw <- list()
-    components$raw$X <- t(SummarizedExperiment::assay(sce_obj, "raw_counts"))
+    raw_matrix <- SummarizedExperiment::assay(sce_obj, "raw_counts")
+    if (inherits(raw_matrix, "DelayedArray")) {
+      raw_matrix <- as(raw_matrix, "sparseMatrix")
+    }
+    components$raw$X <- Matrix::t(raw_matrix)
 
     # Get raw var from metadata if present
     if (!is.null(S4Vectors::metadata(sce_obj)$raw_var)) {

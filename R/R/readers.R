@@ -29,7 +29,7 @@ load_from_folder <- function(folder_path) {
   # =========================================================================
   matrix_file <- file.path(folder_path, manifest$files$X)
   X <- load_mtx(matrix_file)
-  X <- t(X)  # Transpose to cells × genes
+  X <- Matrix::t(X)  # Transpose to cells × genes
   result$X <- X
 
   # =========================================================================
@@ -136,7 +136,7 @@ load_from_folder <- function(folder_path) {
       file_key <- paste0("layer_", key)
       file_path <- file.path(folder_path, manifest$files[[file_key]])
       layer_mat <- load_mtx(file_path)
-      result$layers[[key]] <- t(layer_mat)  # Transpose to cells × genes
+      result$layers[[key]] <- Matrix::t(layer_mat)  # Transpose to cells × genes
       rownames(result$layers[[key]]) <- obs_names
       colnames(result$layers[[key]]) <- var_names
     }
@@ -152,7 +152,7 @@ load_from_folder <- function(folder_path) {
     raw_matrix_file <- file.path(folder_path, strsplit(manifest$files$raw_X, "/")[[1]][2])
     raw_matrix_path <- file.path(folder_path, "raw", basename(raw_matrix_file))
     raw_X <- load_mtx(raw_matrix_path)
-    result$raw$X <- t(raw_X)  # Transpose to cells × genes
+    result$raw$X <- Matrix::t(raw_X)  # Transpose to cells × genes
 
     # Load raw gene IDs
     raw_features_file <- file.path(folder_path, strsplit(manifest$files$raw_features, "/")[[1]][2])

@@ -22,7 +22,7 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
   # 1. X - Expression matrix (transpose to genes × cells for storage)
   # =========================================================================
   matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
-  X_transposed <- t(components$X)  # Transpose to genes × cells
+  X_transposed <- Matrix::t(components$X)  # Transpose to genes × cells
   save_mtx(X_transposed, file.path(folder_path, matrix_file), compress = compress)
   saved_files$X <- matrix_file
 
@@ -125,7 +125,7 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
 
     for (key in names(components$layers)) {
       layer_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      layer_transposed <- t(components$layers[[key]])  # Transpose to genes × cells
+      layer_transposed <- Matrix::t(components$layers[[key]])  # Transpose to genes × cells
       save_mtx(layer_transposed, file.path(layers_dir, layer_file), compress = compress)
       saved_files[[paste0("layer_", key)]] <- file.path("layers", layer_file)
     }
@@ -140,7 +140,7 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
 
     # Save raw X matrix
     raw_matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
-    raw_X_transposed <- t(components$raw$X)  # Transpose to genes × cells
+    raw_X_transposed <- Matrix::t(components$raw$X)  # Transpose to genes × cells
     save_mtx(raw_X_transposed, file.path(raw_dir, raw_matrix_file), compress = compress)
     saved_files$raw_X <- file.path("raw", raw_matrix_file)
 
