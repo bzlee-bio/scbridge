@@ -12,7 +12,9 @@ load_mtx <- function(mtx_file) {
   }
 
   if (grepl("\\.gz$", mtx_file)) {
-    mat <- Matrix::readMM(gzfile(mtx_file))
+    con <- gzfile(mtx_file, "rb")
+    mat <- Matrix::readMM(con)
+    close(con)
   } else {
     mat <- Matrix::readMM(mtx_file)
   }

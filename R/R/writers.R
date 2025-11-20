@@ -31,8 +31,14 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
   # =========================================================================
   barcodes_file <- ifelse(compress, "barcodes.tsv.gz", "barcodes.tsv")
   barcodes_df <- data.frame(barcode = rownames(components$X))
-  write.table(barcodes_df, file.path(folder_path, barcodes_file),
-             sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  if (compress) {
+    con <- gzfile(file.path(folder_path, barcodes_file), "wb")
+    write.table(barcodes_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    close(con)
+  } else {
+    write.table(barcodes_df, file.path(folder_path, barcodes_file),
+               sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  }
   saved_files$barcodes <- barcodes_file
 
   # Save cell metadata as Parquet
@@ -48,8 +54,14 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
     gene_name = colnames(components$X),
     feature_type = "Gene Expression"
   )
-  write.table(features_df, file.path(folder_path, features_file),
-             sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  if (compress) {
+    con <- gzfile(file.path(folder_path, features_file), "wb")
+    write.table(features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    close(con)
+  } else {
+    write.table(features_df, file.path(folder_path, features_file),
+               sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  }
   saved_files$features <- features_file
 
   # Save gene metadata as Parquet
@@ -157,8 +169,14 @@ save_to_folder <- function(components, folder_path, compress = TRUE) {
       gene_name = colnames(components$raw$X),
       feature_type = "Gene Expression"
     )
-    write.table(raw_features_df, file.path(raw_dir, raw_features_file),
-               sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    if (compress) {
+      con <- gzfile(file.path(raw_dir, raw_features_file), "wb")
+      write.table(raw_features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+      close(con)
+    } else {
+      write.table(raw_features_df, file.path(raw_dir, raw_features_file),
+                 sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    }
     saved_files$raw_features <- file.path("raw", raw_features_file)
   }
 
