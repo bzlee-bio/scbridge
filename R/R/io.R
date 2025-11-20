@@ -1,30 +1,29 @@
-# Main I/O module - Simple API for writing and reading data in .scb format
-# Part of the scBridge R package
+# Main I/O module - Simple API for writing and reading data in .scio format
+# Part of the scio R package
 
-#' Write single-cell data to .scb folder
+#' Write single-cell data to .scio folder
 #'
-#' Saves Seurat or SingleCellExperiment objects to .scb folder format.
+#' Saves Seurat or SingleCellExperiment objects to .scio folder format.
 #' Works seamlessly with Python (loads as AnnData).
 #'
 #' @param object Seurat or SingleCellExperiment object
-#' @param path Output .scb folder path (e.g., "data.scb")
+#' @param path Output .scio folder path (e.g., "data.scio")
 #' @param overwrite Whether to overwrite existing folder (default: FALSE)
 #' @param compress Whether to compress MTX files (default: TRUE)
 #'
 #' @examples
 #' \dontrun{
-#' library(Seurat)
-#' library(scBridge)
+#' library(scio)
 #'
 #' # Save Seurat object
-#' write(seurat_obj, "data.scb")
+#' scio_write(seurat_obj, "data.scio")
 #'
 #' # Save SingleCellExperiment object
-#' write(sce_obj, "data.scb")
+#' scio_write(sce_obj, "data.scio")
 #' }
 #'
 #' @export
-write <- function(object, path, overwrite = FALSE, compress = TRUE) {
+scio_write <- function(object, path, overwrite = FALSE, compress = TRUE) {
   # Check if folder exists
   if (dir.exists(path) && !overwrite) {
     stop(paste0("Folder already exists: ", path, "\nUse overwrite = TRUE to replace it."))
@@ -44,7 +43,7 @@ write <- function(object, path, overwrite = FALSE, compress = TRUE) {
     unlink(path, recursive = TRUE)
   }
 
-  # Save directly to .scb folder
+  # Save directly to .scio folder
   message("  Saving data to ", basename(path), "...")
   save_to_folder(components, path, compress = compress)
   message("  \u2713 Data saved to ", basename(path))
@@ -53,28 +52,28 @@ write <- function(object, path, overwrite = FALSE, compress = TRUE) {
 }
 
 
-#' Read single-cell data from .scb folder
+#' Read single-cell data from .scio folder
 #'
-#' Loads data from .scb folder and converts to Seurat or SingleCellExperiment.
+#' Loads data from .scio folder and converts to Seurat or SingleCellExperiment.
 #'
-#' @param path Path to .scb folder (also supports legacy tar archives)
+#' @param path Path to .scio folder (also supports legacy tar archives)
 #' @param output Output format: "Seurat" or "SCE" (default: "Seurat")
 #'
 #' @return Seurat or SingleCellExperiment object
 #'
 #' @examples
 #' \dontrun{
-#' library(scBridge)
+#' library(scio)
 #'
 #' # Load as Seurat
-#' seurat_obj <- read("data.scb", output = "Seurat")
+#' seurat_obj <- scio_read("data.scio", output = "Seurat")
 #'
 #' # Load as SingleCellExperiment
-#' sce_obj <- read("data.scb", output = "SCE")
+#' sce_obj <- scio_read("data.scio", output = "SCE")
 #' }
 #'
 #' @export
-read <- function(path, output = "Seurat") {
+scio_read <- function(path, output = "Seurat") {
   if (!file.exists(path)) {
     stop(paste0("File not found: ", path))
   }
@@ -124,14 +123,14 @@ read <- function(path, output = "Seurat") {
 }
 
 
-#' Write components list to .scb file (advanced usage)
+#' Write components list to .scio file (advanced usage)
 #'
 #' @param components Named list with all components
-#' @param path Output .scb file path
+#' @param path Output .scio file path
 #' @param overwrite Whether to overwrite existing file
 #' @param compress Whether to compress MTX files
 #' @export
-write_components <- function(components, path, overwrite = FALSE, compress = TRUE) {
+scio_write_components <- function(components, path, overwrite = FALSE, compress = TRUE) {
   # Check if file exists
   if (file.exists(path) && !overwrite) {
     stop(paste0("File already exists: ", path, "\nUse overwrite = TRUE to replace it."))
@@ -160,12 +159,12 @@ write_components <- function(components, path, overwrite = FALSE, compress = TRU
 }
 
 
-#' Read components list from .scb file (advanced usage)
+#' Read components list from .scio file (advanced usage)
 #'
-#' @param path Path to .scb file
+#' @param path Path to .scio file
 #' @return Named list with all components
 #' @export
-read_components <- function(path) {
+scio_read_components <- function(path) {
   if (!file.exists(path)) {
     stop(paste0("File not found: ", path))
   }

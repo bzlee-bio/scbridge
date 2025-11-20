@@ -1,5 +1,5 @@
 # Seurat object converters
-# Part of the scBridge R package
+# Part of the scio R package
 
 #' Convert components list to Seurat object
 #'

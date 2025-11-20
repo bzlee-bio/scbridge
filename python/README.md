@@ -1,4 +1,4 @@
-# scbridge - Python Package
+# scio - Python Package
 
 Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seurat/SingleCellExperiment).
 
@@ -7,13 +7,13 @@ Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seur
 ### From GitHub
 
 ```bash
-pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
+pip install git+https://github.com/bzlee-bio/scio.git#subdirectory=python
 ```
 
 ### Local Development
 
 ```bash
-cd scbridge/python
+cd scio/python
 pip install -e .
 ```
 
@@ -21,16 +21,16 @@ pip install -e .
 
 ```python
 import anndata as ad
-import scbridge as sb
+import scio as sb
 
 # Load your data
 adata = ad.read_h5ad("data.h5ad")
 
-# Save to .scb format (works with R!)
-sb.write(adata, "data.scb")
+# Save to .scio format (works with R!)
+sb.write(adata, "data.scio")
 
 # Load back
-adata = sb.read("data.scb")
+adata = sb.read("data.scio")
 ```
 
 ## Features
@@ -66,18 +66,18 @@ adata = sb.read("data.scb")
 sb.write(adata, path, overwrite=False, compress=True)
 ```
 
-Save AnnData object to .scb folder.
+Save AnnData object to .scio folder.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str or Path): Output .scb folder path
+- `path` (str or Path): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 - `compress` (bool): Whether to compress MTX files (default: True)
 
 **Example:**
 ```python
-sb.write(adata, "data.scb")
-sb.write(adata, "data.scb", overwrite=True)
+sb.write(adata, "data.scio")
+sb.write(adata, "data.scio", overwrite=True)
 ```
 
 ### read()
@@ -86,25 +86,25 @@ sb.write(adata, "data.scb", overwrite=True)
 adata = sb.read(path)
 ```
 
-Load AnnData object from .scb folder (or legacy tar archive).
+Load AnnData object from .scio folder (or legacy tar archive).
 
 **Parameters:**
-- `path` (str or Path): Path to .scb folder (also supports legacy tar archives)
+- `path` (str or Path): Path to .scio folder (also supports legacy tar archives)
 
 **Returns:**
 - `AnnData`: Reconstructed AnnData object
 
 **Example:**
 ```python
-adata = sb.read("data.scb")
+adata = sb.read("data.scio")
 ```
 
 ## File Format
 
-The .scb folder structure:
+The .scio folder structure:
 
 ```
-data.scb/
+data.scio/
 ├── manifest.json           # Metadata about saved components
 ├── matrix.mtx              # X (expression matrix, genes × cells)
 ├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
@@ -136,17 +136,17 @@ data.scb/
 ```python
 # Python: Save
 import anndata as ad
-import scbridge as sb
+import scio as sb
 
 adata = ad.read_h5ad("data.h5ad")
-sb.write(adata, "data.scb")
+sb.write(adata, "data.scio")
 ```
 
 ```r
 # R: Load as Seurat
 library(scBridge)
 
-seurat_obj <- read("data.scb", output = "Seurat")
+seurat_obj <- read("data.scio", output = "Seurat")
 ```
 
 ### R to Python
@@ -156,14 +156,14 @@ seurat_obj <- read("data.scb", output = "Seurat")
 library(scBridge)
 library(Seurat)
 
-write(seurat_obj, "data.scb")
+write(seurat_obj, "data.scio")
 ```
 
 ```python
 # Python: Load
-import scbridge as sb
+import scio as sb
 
-adata = sb.read("data.scb")
+adata = sb.read("data.scio")
 ```
 
 ## Requirements
@@ -185,7 +185,7 @@ See [CONTRIBUTING.md](../../CONTRIBUTING.md)
 
 <!-- ## Citation
 
-If you use scbridge in your research, please cite:
+If you use scio in your research, please cite:
 
 ```
 [Citation information will be added]

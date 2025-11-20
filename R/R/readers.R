@@ -1,5 +1,5 @@
 # Readers module - Load all components from folder structure
-# Part of the scBridge R package
+# Part of the scio R package
 
 #' Load all data components from folder structure
 #'

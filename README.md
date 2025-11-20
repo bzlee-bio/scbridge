@@ -1,6 +1,6 @@
-# scBridge
+# scio
 
-**Cross-platform single-cell RNA-seq data storage for Python and R**
+**Single-cell data I/O for Python and R**
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/)
 [![R](https://img.shields.io/badge/R-4.0+-blue.svg)](https://www.r-project.org/)
@@ -8,21 +8,21 @@
 
 ## Overview
 
-scBridge provides a universal `.scb` folder format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
+scio provides a universal `.scio` folder format for storing single-cell RNA-seq data that works seamlessly between Python (AnnData/scanpy) and R (Seurat/SingleCellExperiment).
 
 **Key Features:**
 - ✅ **Complete data preservation** - All 10 AnnData components (X, obs, var, obsm, varm, obsp, varp, layers, uns, raw)
 - ✅ **Cross-platform** - Python ↔ R seamless conversion
 - ✅ **Efficient** - Parquet + MTX format, ~3x smaller than CSV
 - ✅ **Fast** - Direct folder access, instant loading (no extraction needed)
-- ✅ **Simple API** - Just `write()` and `read()`
+- ✅ **Simple API** - Just `scio_write()` and `scio_read()` in R, `scio.write()` and `scio.read()` in Python
 - ✅ **Easy to inspect** - Standard folder structure, no tar unpacking required
 
 ## Installation
 
 ### Python
 ```bash
-pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
+pip install git+https://github.com/bzlee-bio/scio.git#subdirectory=python
 ```
 
 ### R
@@ -30,18 +30,18 @@ pip install git+https://github.com/bzlee-bio/scbridge.git#subdirectory=python
 # Install devtools if needed
 install.packages("devtools")
 
-# Install scBridge from GitHub
-devtools::install_github("bzlee-bio/scbridge", subdir = "R")
+# Install scio from GitHub
+devtools::install_github("bzlee-bio/scio", subdir = "R")
 ```
 
 ## Quick Start
 
-### Python → .scb → R
+### Python → .scio → R
 
 **Python (save):**
 ```python
 import scanpy as sc
-import scbridge as sb
+import scio as sb
 
 # Load and process data
 adata = sc.read_h5ad("pbmc.h5ad")
@@ -52,17 +52,17 @@ sc.pp.pca(adata)
 sc.pp.neighbors(adata)
 sc.tl.umap(adata)
 
-# Save to .scb (includes ALL components)
-sb.write(adata, "pbmc_data.scb")
+# Save to .scio (includes ALL components)
+scio.write(adata, "pbmc_data.scio")
 ```
 
 **R (load):**
 ```R
-library(scBridge)
+library(scio)
 library(Seurat)
 
 # Load as Seurat
-seurat <- read("pbmc_data.scb", output = "Seurat")
+seurat <- scio_read("pbmc_data.scio", output = "Seurat")
 print(seurat)
 
 # All components preserved:
@@ -72,11 +72,11 @@ print(seurat)
 # - Neighbor graphs
 ```
 
-### R → .scb → Python
+### R → .scio → Python
 
 **R (save):**
 ```R
-library(scBridge)
+library(scio)
 library(Seurat)
 
 # Process data
@@ -87,16 +87,16 @@ seurat <- ScaleData(seurat)
 seurat <- RunPCA(seurat)
 seurat <- RunUMAP(seurat, dims = 1:30)
 
-# Save to .scb
-write(seurat, "pbmc_data.scb")
+# Save to .scio
+scio_write(seurat, "pbmc_data.scio")
 ```
 
 **Python (load):**
 ```python
-import scbridge as sb
+import scio as sb
 
 # Load as AnnData
-adata = sb.read("pbmc_data.scb")
+adata = scio.read("pbmc_data.scio")
 print(adata)
 
 # All Seurat reductions loaded to obsm
@@ -107,58 +107,58 @@ print(adata)
 
 ### Python
 
-#### `scbridge.write(adata, path, overwrite=False)`
-Save AnnData to .scb folder.
+#### `scio.write(adata, path, overwrite=False)`
+Save AnnData to .scio folder.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
-- `path` (str): Output .scb folder path
+- `path` (str): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 
 **Example:**
 ```python
-import scbridge as sb
-sb.write(adata, "data.scb")
-sb.write(adata, "data.scb", overwrite=True)
+import scio as sb
+scio.write(adata, "data.scio")
+scio.write(adata, "data.scio", overwrite=True)
 ```
 
-#### `scbridge.read(path)`
-Load AnnData from .scb folder (or legacy tar archive).
+#### `scio.read(path)`
+Load AnnData from .scio folder (or legacy tar archive).
 
 **Parameters:**
-- `path` (str): Path to .scb folder (also supports legacy tar archives for backward compatibility)
+- `path` (str): Path to .scio folder (also supports legacy tar archives for backward compatibility)
 
 **Returns:**
 - `adata` (AnnData): Loaded AnnData object
 
 **Example:**
 ```python
-adata = sb.read("data.scb")
+adata = scio.read("data.scio")
 # Also works with legacy tar archives:
-adata = sb.read("data.scbridge")
+adata = scio.read("data.scio")
 ```
 
 ### R
 
-#### `write(object, path, overwrite = FALSE)`
-Save Seurat or SingleCellExperiment to .scb file.
+#### `scio_write(object, path, overwrite = FALSE)`
+Save Seurat or SingleCellExperiment to .scio file.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
-- `path` (character): Output .scb file path
+- `path` (character): Output .scio file path
 - `overwrite` (logical): Whether to overwrite existing file
 
 **Example:**
 ```R
-write(seurat, "data.scb")
-write(sce, "data.scb", overwrite = TRUE)
+scio_write(seurat, "data.scio")
+scio_write(sce, "data.scio", overwrite = TRUE)
 ```
 
-#### `read(path, output = c("Seurat", "SCE"))`
-Load data from .scb file.
+#### `scio_read(path, output = c("Seurat", "SCE"))`
+Load data from .scio file.
 
 **Parameters:**
-- `path` (character): Path to .scb file
+- `path` (character): Path to .scio file
 - `output` (character): Output format ("Seurat" or "SCE")
 
 **Returns:**
@@ -166,13 +166,13 @@ Load data from .scb file.
 
 **Example:**
 ```R
-seurat <- read("data.scb", output = "Seurat")
-sce <- read("data.scb", output = "SCE")
+seurat <- scio_read("data.scio", output = "Seurat")
+sce <- scio_read("data.scio", output = "SCE")
 ```
 
 ## What Gets Saved?
 
-scBridge preserves **ALL** AnnData components:
+scio preserves **ALL** AnnData components:
 
 | Component | Description | Python | R (Seurat) | R (SCE) |
 |-----------|-------------|--------|------------|---------|
@@ -189,10 +189,10 @@ scBridge preserves **ALL** AnnData components:
 
 ## File Format
 
-scBridge uses a `.scb` folder (directory) with a standardized structure:
+scio uses a `.scio` folder (directory) with a standardized structure:
 
 ```
-data.scb/
+data.scio/
 ├── manifest.json           # Metadata
 ├── matrix.mtx              # Main expression (sparse)
 ├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
@@ -234,7 +234,7 @@ For 1M cells × 20K genes dataset:
 
 | Format | File Size | Save Time | Load Time |
 |--------|-----------|-----------|-----------|
-| scBridge (.scb) | 600 MB | 15-20s | 5-8s |
+| scio (.scio) | 600 MB | 15-20s | 5-8s |
 | H5AD | 800 MB | 10-15s | 8-12s |
 | RDS | 1.2 GB | 30-40s | 15-20s |
 | CSV | 4+ GB | 120s+ | 180s+ |
@@ -274,19 +274,19 @@ MIT License - see [LICENSE](LICENSE)
 <!-- 
 ## Citation
 
-If you use scBridge in your research, please cite:
+If you use scio in your research, please cite:
 
 ```
-@software{scbridge2025,
+@software{scio2025,
   author = {Your Name},
-  title = {scBridge: Cross-platform single-cell RNA-seq data storage},
+  title = {scio: Cross-platform single-cell RNA-seq data storage},
   year = {2025},
-  url = {https://github.com/yourusername/scbridge}
+  url = {https://github.com/yourusername/scio}
 }
 ``` -->
 <!-- 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/scbridge/issues)
-- **Documentation**: [Read the Docs](https://scbridge.readthedocs.io)
-- **Questions**: [Discussions](https://github.com/yourusername/scbridge/discussions) -->
+- **Issues**: [GitHub Issues](https://github.com/yourusername/scio/issues)
+- **Documentation**: [Read the Docs](https://scio.readthedocs.io)
+- **Questions**: [Discussions](https://github.com/yourusername/scio/discussions) -->

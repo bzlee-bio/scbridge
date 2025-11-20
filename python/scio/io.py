@@ -17,7 +17,7 @@ def write(adata: ad.AnnData,
           overwrite: bool = False,
           compress: bool = True) -> None:
     """
-    Write AnnData object to .scb folder
+    Write AnnData object to .scio folder
 
     Saves ALL 10 components of AnnData:
     - X (expression matrix)
@@ -31,7 +31,7 @@ def write(adata: ad.AnnData,
     - raw (raw counts)
     - uns (unstructured metadata)
 
-    Format inside .scb:
+    Format inside .scio:
     - MTX for sparse matrices (universal R/Python compatibility)
     - Parquet for DataFrames (preserves dtypes, efficient for large data)
     - JSON for metadata
@@ -41,7 +41,7 @@ def write(adata: ad.AnnData,
     adata : AnnData
         AnnData object to save
     path : str or Path
-        Output .scb folder path (e.g., "data.scb")
+        Output .scio folder path (e.g., "data.scio")
     overwrite : bool
         Whether to overwrite existing folder (default: False)
     compress : bool
@@ -50,18 +50,18 @@ def write(adata: ad.AnnData,
     Example:
     --------
     >>> import anndata as ad
-    >>> import scbridge as sb
+    >>> import scio as sb
     >>> adata = ad.read_h5ad("data.h5ad")
-    >>> sb.write(adata, "data.scb")
+    >>> sb.write(adata, "data.scio")
     """
     path = Path(path)
 
     # Validate extension
-    if not str(path).endswith('.scb'):
+    if not str(path).endswith('.scio'):
         raise ValueError(
-            f"Invalid file extension. Only '.scb' is supported.\n"
+            f"Invalid file extension. Only '.scio' is supported.\n"
             f"Got: {path.suffix}\n"
-            f"Example: sb.write(adata, 'data.scb')"
+            f"Example: sb.write(adata, 'data.scio')"
         )
 
     # Check if folder exists
@@ -82,7 +82,7 @@ def write(adata: ad.AnnData,
 
 def read(path: Union[str, Path]) -> ad.AnnData:
     """
-    Read AnnData object from .scb folder (or legacy tar archive)
+    Read AnnData object from .scio folder (or legacy tar archive)
 
     Loads ALL 10 components of AnnData:
     - X (expression matrix)
@@ -99,7 +99,7 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     Parameters:
     -----------
     path : str or Path
-        Path to .scb folder (also supports legacy tar archives)
+        Path to .scio folder (also supports legacy tar archives)
 
     Returns:
     --------
@@ -107,10 +107,10 @@ def read(path: Union[str, Path]) -> ad.AnnData:
 
     Example:
     --------
-    >>> import scbridge as sb
-    >>> adata = sb.read("data.scb")
+    >>> import scio as sb
+    >>> adata = sb.read("data.scio")
     >>> # Also works with legacy tar archives:
-    >>> adata = sb.read("data.scbridge")
+    >>> adata = sb.read("data.scio")
     >>> print(adata)
     """
     path = Path(path)
@@ -155,7 +155,7 @@ def read(path: Union[str, Path]) -> ad.AnnData:
 
     except tarfile.ReadError as e:
         raise ValueError(
-            f"Path is not a valid .scb folder or tar archive: {path}\n"
-            f"Expected either a .scb folder or a legacy tar archive.\n"
+            f"Path is not a valid .scio folder or tar archive: {path}\n"
+            f"Expected either a .scio folder or a legacy tar archive.\n"
             f"Error: {str(e)}"
         )

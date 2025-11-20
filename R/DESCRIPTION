@@ -1,9 +1,9 @@
-Package: scBridge
+Package: scio
 Type: Package
-Title: Cross-Platform Single-Cell RNA-Seq Data Storage
+Title: Single-Cell Data Input/Output for R and Python
 Version: 0.1.2
 Authors@R: c(
-    person("scBridge", "Contributors", role = c("aut", "cre"),
+    person("scio", "Contributors", role = c("aut", "cre"),
            email = "noreply@example.com")
     )
 Description: Simple, efficient package for saving and loading single-cell RNA-seq
@@ -28,5 +28,5 @@ Suggests:
     SummarizedExperiment,
     S4Vectors,
     testthat (>= 3.0.0)
-URL: https://github.com/YOUR_USERNAME/scbridge
-BugReports: https://github.com/YOUR_USERNAME/scbridge/issues
+URL: https://github.com/bzlee-bio/scio
+BugReports: https://github.com/bzlee-bio/scio/issues

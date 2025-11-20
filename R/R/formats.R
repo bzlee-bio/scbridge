@@ -1,5 +1,5 @@
 # Format handlers for MTX, Parquet, and JSON files
-# Part of the scBridge R package
+# Part of the scio R package
 
 #' Load sparse matrix from MTX format
 #'
@@ -34,14 +34,23 @@ save_mtx <- function(matrix, file_path, compress = TRUE) {
     stop("Matrix package required. Install with: install.packages('Matrix')")
   }
 
-  if (compress && !grepl("\\.gz$", file_path)) {
-    file_path <- paste0(file_path, ".gz")
-  }
-
   if (compress) {
-    con <- gzfile(file_path, "wb")
-    Matrix::writeMM(matrix, con)
-    close(con)
+    # Matrix::writeMM doesn't support connections, so write uncompressed first
+    temp_file <- tempfile(fileext = ".mtx")
+    Matrix::writeMM(matrix, temp_file)
+
+    # Read and compress
+    if (!grepl("\\.gz$", file_path)) {
+      file_path <- paste0(file_path, ".gz")
+    }
+
+    con_in <- file(temp_file, "rb")
+    con_out <- gzfile(file_path, "wb")
+    writeBin(readBin(con_in, "raw", file.info(temp_file)$size), con_out)
+    close(con_in)
+    close(con_out)
+
+    unlink(temp_file)
   } else {
     Matrix::writeMM(matrix, file_path)
   }

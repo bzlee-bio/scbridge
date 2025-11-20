@@ -1,5 +1,5 @@
 # Writers module - Save all components to folder structure
-# Part of the scBridge R package
+# Part of the scio R package
 
 #' Save all components to folder structure
 #'

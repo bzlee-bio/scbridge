@@ -254,7 +254,7 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     manifest = {
         'format': 'scBridge v1.0',
-        'created_by': 'scbridge.write',
+        'created_by': 'scio.write',
         'dimensions': {
             'n_obs': int(adata.n_obs),
             'n_vars': int(adata.n_vars),

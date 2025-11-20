@@ -1,12 +1,12 @@
 """
-Setup script for scbridge Python package
+Setup script for scio Python package
 """
 from setuptools import setup, find_packages
 from pathlib import Path
 
 # Read version
 version = {}
-with open("scbridge/_version.py") as f:
+with open("scio/_version.py") as f:
     exec(f.read(), version)
 
 # Read README
@@ -14,12 +14,12 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 setup(
-    name="scbridge",
+    name="scio",
     version=version['__version__'],
     description="Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seurat/SCE)",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="scbridge contributors",
+    author="scio contributors",
     license="MIT",
     packages=find_packages(),
     install_requires=[

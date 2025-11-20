@@ -3,14 +3,14 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "scbridge"
+name = "scio"
 version = "0.1.2"
 description = "Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seurat/SCE)"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "scbridge contributors"}
+    {name = "scio contributors"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -32,10 +32,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_USERNAME/scbridge"
-Documentation = "https://github.com/YOUR_USERNAME/scbridge#readme"
-Repository = "https://github.com/YOUR_USERNAME/scbridge"
-Issues = "https://github.com/YOUR_USERNAME/scbridge/issues"
+Homepage = "https://github.com/YOUR_USERNAME/scio"
+Documentation = "https://github.com/YOUR_USERNAME/scio#readme"
+Repository = "https://github.com/YOUR_USERNAME/scio"
+Issues = "https://github.com/YOUR_USERNAME/scio/issues"
 
 [tool.setuptools]
-packages = ["scbridge"]
+packages = ["scio"]
