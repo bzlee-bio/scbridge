@@ -205,6 +205,12 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   # =========================================================================
   # Create manifest file
   # =========================================================================
+  # Helper to ensure arrays are preserved as arrays in JSON (not unboxed to scalars)
+  as_json_array <- function(x) {
+    if (length(x) == 0) return(list())
+    I(x)  # I() prevents auto_unbox from converting single elements to scalars
+  }
+
   manifest <- list(
     format = ifelse(compute_hashes, "scio v1.1", "scio v1.0"),
     created_by = "scio::write",
@@ -216,13 +222,13 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
       X = TRUE,
       obs = TRUE,
       var = ncol(components$var) > 0,
-      obsm = names(components$obsm),
-      varm = names(components$varm),
-      obsp = names(components$obsp),
-      varp = names(components$varp),
-      layers = names(components$layers),
+      obsm = as_json_array(names(components$obsm)),
+      varm = as_json_array(names(components$varm)),
+      obsp = as_json_array(names(components$obsp)),
+      varp = as_json_array(names(components$varp)),
+      layers = as_json_array(names(components$layers)),
       raw = !is.null(components$raw),
-      uns = names(components$uns)
+      uns = as_json_array(names(components$uns))
     ),
     files = saved_files
   )
@@ -429,19 +435,25 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
   # =========================================================================
   # Update manifest with new hashes, files, and component info
   # =========================================================================
+  # Helper to ensure arrays are preserved as arrays in JSON (not unboxed to scalars)
+  as_json_array <- function(x) {
+    if (length(x) == 0) return(list())
+    I(x)  # I() prevents auto_unbox from converting single elements to scalars
+  }
+
   manifest$format <- "scio v1.1"
   manifest$hashes <- new_hashes
   manifest$files <- saved_files  # Update file paths
   manifest$last_updated <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S")
 
   # Update components list with current component names
-  manifest$components$obsm <- names(components$obsm)
-  manifest$components$varm <- names(components$varm)
-  manifest$components$obsp <- names(components$obsp)
-  manifest$components$varp <- names(components$varp)
-  manifest$components$layers <- names(components$layers)
+  manifest$components$obsm <- as_json_array(names(components$obsm))
+  manifest$components$varm <- as_json_array(names(components$varm))
+  manifest$components$obsp <- as_json_array(names(components$obsp))
+  manifest$components$varp <- as_json_array(names(components$varp))
+  manifest$components$layers <- as_json_array(names(components$layers))
   manifest$components$raw <- !is.null(components$raw)
-  manifest$components$uns <- names(components$uns)
+  manifest$components$uns <- as_json_array(names(components$uns))
 
   save_json(manifest, file.path(folder_path, "manifest.json"))
 

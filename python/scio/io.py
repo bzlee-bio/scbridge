@@ -55,12 +55,12 @@ def write(adata: ad.AnnData,
     Example:
     --------
     >>> import anndata as ad
-    >>> import scio as sb
+    >>> import scio
     >>> adata = ad.read_h5ad("data.h5ad")
-    >>> sb.write(adata, "data.scio")
+    >>> scio.write(adata, "data.scio")
     >>>
     >>> # Incremental update (only changed components)
-    >>> sb.write(adata, "data.scio", update=True)
+    >>> scio.write(adata, "data.scio", update=True)
     """
     path = Path(path)
 
@@ -69,7 +69,7 @@ def write(adata: ad.AnnData,
         raise ValueError(
             f"Invalid file extension. Only '.scio' is supported.\n"
             f"Got: {path.suffix}\n"
-            f"Example: sb.write(adata, 'data.scio')"
+            f"Example: scio.write(adata, 'data.scio')"
         )
 
     # Validate conflicting options

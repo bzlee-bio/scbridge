@@ -1,0 +1,59 @@
+{
+  "format": "scio v1.1",
+  "created_by": "scio (Python)",
+  "dimensions": {
+    "n_obs": 500,
+    "n_vars": 200
+  },
+  "components": {
+    "X": true,
+    "obs": true,
+    "var": true,
+    "obsm": [
+      "X_pca",
+      "X_umap"
+    ],
+    "varm": [],
+    "obsp": [
+      "connectivities"
+    ],
+    "varp": [],
+    "layers": [
+      "normalized"
+    ],
+    "raw": true,
+    "uns": [
+      "dataset_name",
+      "scio_version",
+      "cell_type_colors",
+      "pca"
+    ]
+  },
+  "files": {
+    "X": "matrix.mtx",
+    "barcodes": "barcodes.tsv.gz",
+    "obs": "obs.parquet",
+    "features": "features.tsv.gz",
+    "var": "var.parquet",
+    "obsm_X_pca": "obsm/X_pca.parquet",
+    "obsm_X_umap": "obsm/X_umap.parquet",
+    "obsp_connectivities": "obsp/connectivities.mtx",
+    "layer_normalized": "layers/normalized.mtx",
+    "raw_X": "raw/matrix.mtx",
+    "raw_var": "raw/var.parquet",
+    "raw_features": "raw/features.tsv.gz",
+    "uns": "uns.json"
+  },
+  "hashes": {
+    "X": "2804b1a295a295b6d1ed59c644d87068",
+    "obs": "4560b02e588e720fb9a2d9407521203e",
+    "var": "a8c560fa76c8afff4f90f50b4e45ff9c",
+    "obsm_X_pca": "bec627ca4dd4904f8961d70f31929b46",
+    "obsm_X_umap": "d1e40f3c7af06d50478ee4cbdc35a3a9",
+    "obsp_connectivities": "4575679dcecf88f33b458da0384372a3",
+    "layer_normalized": "532471075806ff92cfe8e424f58242ca",
+    "raw_X": "2804b1a295a295b6d1ed59c644d87068",
+    "raw_var": "a8c560fa76c8afff4f90f50b4e45ff9c",
+    "uns": "ad09feea4458bd710feceeb9d60ac676"
+  }
+}

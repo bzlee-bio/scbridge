@@ -59,9 +59,7 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     # 1. X - Expression matrix (cells × genes, transposed to genes × cells for R)
     # =========================================================================
-    # CRITICAL FIX: Don't use gzip on MTX - it's extremely slow (10-100x slower)
-    # The tar archive itself provides sufficient compression
-    matrix_file = "matrix.mtx"
+    matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
 
     # Transpose for R compatibility (genes × cells)
     if sp.issparse(adata.X):
@@ -69,7 +67,7 @@ def save_to_folder(adata: ad.AnnData,
     else:
         X_transposed = sp.csr_matrix(adata.X.T)
 
-    save_mtx(X_transposed, folder_path / matrix_file, compress=False)  # NO gzip - too slow!
+    save_mtx(X_transposed, folder_path / matrix_file, compress=compress)
     saved_files['X'] = matrix_file
     if compute_hashes:
         hashes['X'] = compute_hash(adata.X)
@@ -166,8 +164,8 @@ def save_to_folder(adata: ad.AnnData,
         obsp_dir.mkdir(exist_ok=True)
 
         for key in adata.obsp.keys():
-            graph_file = f"{key}.mtx"  # No gzip - too slow
-            save_mtx(adata.obsp[key], obsp_dir / graph_file, compress=False)
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
+            save_mtx(adata.obsp[key], obsp_dir / graph_file, compress=compress)
             saved_files[f'obsp_{key}'] = f"obsp/{graph_file}"
             if compute_hashes:
                 hashes[f'obsp_{key}'] = compute_hash(adata.obsp[key])
@@ -180,8 +178,8 @@ def save_to_folder(adata: ad.AnnData,
         varp_dir.mkdir(exist_ok=True)
 
         for key in adata.varp.keys():
-            graph_file = f"{key}.mtx"  # No gzip - too slow
-            save_mtx(adata.varp[key], varp_dir / graph_file, compress=False)
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
+            save_mtx(adata.varp[key], varp_dir / graph_file, compress=compress)
             saved_files[f'varp_{key}'] = f"varp/{graph_file}"
             if compute_hashes:
                 hashes[f'varp_{key}'] = compute_hash(adata.varp[key])
@@ -194,7 +192,7 @@ def save_to_folder(adata: ad.AnnData,
         layers_dir.mkdir(exist_ok=True)
 
         for key in adata.layers.keys():
-            layer_file = f"{key}.mtx"  # No gzip - too slow
+            layer_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
 
             # Transpose for R (genes × cells)
             if sp.issparse(adata.layers[key]):
@@ -202,7 +200,7 @@ def save_to_folder(adata: ad.AnnData,
             else:
                 layer_transposed = sp.csr_matrix(adata.layers[key].T)
 
-            save_mtx(layer_transposed, layers_dir / layer_file, compress=False)
+            save_mtx(layer_transposed, layers_dir / layer_file, compress=compress)
             saved_files[f'layer_{key}'] = f"layers/{layer_file}"
             if compute_hashes:
                 hashes[f'layer_{key}'] = compute_hash(adata.layers[key])
@@ -215,7 +213,7 @@ def save_to_folder(adata: ad.AnnData,
         raw_dir.mkdir(exist_ok=True)
 
         # Save raw X matrix
-        raw_matrix_file = "matrix.mtx"  # No gzip - too slow!
+        raw_matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
 
         if sp.issparse(adata.raw.X):
             raw_X_transposed = adata.raw.X.T
@@ -358,13 +356,14 @@ def update_folder(adata: ad.AnnData,
     # =========================================================================
     # 1. X - Expression matrix
     # =========================================================================
-    matrix_file = "matrix.mtx"
+    matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
+    saved_files['X'] = matrix_file
     def save_x():
         if sp.issparse(adata.X):
             X_transposed = adata.X.T
         else:
             X_transposed = sp.csr_matrix(adata.X.T)
-        save_mtx(X_transposed, folder_path / matrix_file, compress=False)
+        save_mtx(X_transposed, folder_path / matrix_file, compress=compress)
     check_and_update(adata.X, 'X', save_x)
 
     # =========================================================================
@@ -439,11 +438,11 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.obsp.keys():
             hash_key = f'obsp_{key}'
-            graph_file = f"{key}.mtx"
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
             saved_files[hash_key] = f"obsp/{graph_file}"
 
-            def save_obsp(k=key):
-                save_mtx(adata.obsp[k], obsp_dir / f"{k}.mtx", compress=False)
+            def save_obsp(k=key, gf=graph_file):
+                save_mtx(adata.obsp[k], obsp_dir / gf, compress=compress)
             check_and_update(adata.obsp[key], hash_key, save_obsp)
 
     # =========================================================================
@@ -455,11 +454,11 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.varp.keys():
             hash_key = f'varp_{key}'
-            graph_file = f"{key}.mtx"
+            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
             saved_files[hash_key] = f"varp/{graph_file}"
 
-            def save_varp(k=key):
-                save_mtx(adata.varp[k], varp_dir / f"{k}.mtx", compress=False)
+            def save_varp(k=key, gf=graph_file):
+                save_mtx(adata.varp[k], varp_dir / gf, compress=compress)
             check_and_update(adata.varp[key], hash_key, save_varp)
 
     # =========================================================================
@@ -471,15 +470,15 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.layers.keys():
             hash_key = f'layer_{key}'
-            layer_file = f"{key}.mtx"
+            layer_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
             saved_files[hash_key] = f"layers/{layer_file}"
 
-            def save_layer(k=key):
+            def save_layer(k=key, lf=layer_file):
                 if sp.issparse(adata.layers[k]):
                     layer_transposed = adata.layers[k].T
                 else:
                     layer_transposed = sp.csr_matrix(adata.layers[k].T)
-                save_mtx(layer_transposed, layers_dir / f"{k}.mtx", compress=False)
+                save_mtx(layer_transposed, layers_dir / lf, compress=compress)
             check_and_update(adata.layers[key], hash_key, save_layer)
 
     # =========================================================================
@@ -489,8 +488,9 @@ def update_folder(adata: ad.AnnData,
         raw_dir = folder_path / "raw"
         raw_dir.mkdir(exist_ok=True)
 
+        raw_matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
+        saved_files['raw_X'] = f"raw/{raw_matrix_file}"
         def save_raw_x():
-            raw_matrix_file = "matrix.mtx"
             if sp.issparse(adata.raw.X):
                 raw_X_transposed = adata.raw.X.T
             else:

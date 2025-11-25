@@ -9,15 +9,15 @@ Main functions:
 - read(): Load AnnData from .scio file
 
 Example:
-    >>> import scio as sb
+    >>> import scio
     >>> import anndata as ad
     >>>
     >>> # Save
     >>> adata = ad.read_h5ad("data.h5ad")
-    >>> sb.write(adata, "data.scio")
+    >>> scio.write(adata, "data.scio")
     >>>
     >>> # Load
-    >>> adata = sb.read("data.scio")
+    >>> adata = scio.read("data.scio")
 """
 
 from ._version import __version__

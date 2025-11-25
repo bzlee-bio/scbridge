@@ -5,12 +5,25 @@ import anndata as ad
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Union
 import warnings
 
 from .formats import (
     load_mtx, load_parquet, load_json, load_tsv_gz
 )
+
+
+def _ensure_list(value: Union[str, List, None]) -> List:
+    """
+    Ensure value is a list (handles R's auto_unbox converting single elements to strings)
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return value
+    return list(value)
 
 
 def load_from_folder(folder_path: Path) -> ad.AnnData:
@@ -103,50 +116,45 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     # =========================================================================
     # 6. Load obsm (cell embeddings)
     # =========================================================================
-    obsm_keys = manifest['components']['obsm']
-    if obsm_keys:
-        for key in obsm_keys:
-            file_path = folder_path / manifest['files'][f'obsm_{key}']
-            emb_df = load_parquet(file_path)
-            adata.obsm[key] = emb_df.values
+    obsm_keys = _ensure_list(manifest['components']['obsm'])
+    for key in obsm_keys:
+        file_path = folder_path / manifest['files'][f'obsm_{key}']
+        emb_df = load_parquet(file_path)
+        adata.obsm[key] = emb_df.values
 
     # =========================================================================
     # 7. Load varm (gene embeddings)
     # =========================================================================
-    varm_keys = manifest['components']['varm']
-    if varm_keys:
-        for key in varm_keys:
-            file_path = folder_path / manifest['files'][f'varm_{key}']
-            varm_df = load_parquet(file_path)
-            adata.varm[key] = varm_df.values
+    varm_keys = _ensure_list(manifest['components']['varm'])
+    for key in varm_keys:
+        file_path = folder_path / manifest['files'][f'varm_{key}']
+        varm_df = load_parquet(file_path)
+        adata.varm[key] = varm_df.values
 
     # =========================================================================
     # 8. Load obsp (cell-cell graphs)
     # =========================================================================
-    obsp_keys = manifest['components']['obsp']
-    if obsp_keys:
-        for key in obsp_keys:
-            file_path = folder_path / manifest['files'][f'obsp_{key}']
-            adata.obsp[key] = load_mtx(file_path, transpose=False)
+    obsp_keys = _ensure_list(manifest['components']['obsp'])
+    for key in obsp_keys:
+        file_path = folder_path / manifest['files'][f'obsp_{key}']
+        adata.obsp[key] = load_mtx(file_path, transpose=False)
 
     # =========================================================================
     # 9. Load varp (gene-gene graphs)
     # =========================================================================
-    varp_keys = manifest['components']['varp']
-    if varp_keys:
-        for key in varp_keys:
-            file_path = folder_path / manifest['files'][f'varp_{key}']
-            adata.varp[key] = load_mtx(file_path, transpose=False)
+    varp_keys = _ensure_list(manifest['components']['varp'])
+    for key in varp_keys:
+        file_path = folder_path / manifest['files'][f'varp_{key}']
+        adata.varp[key] = load_mtx(file_path, transpose=False)
 
     # =========================================================================
     # 10. Load layers (additional matrices)
     # =========================================================================
-    layer_keys = manifest['components']['layers']
-    if layer_keys:
-        for key in layer_keys:
-            file_path = folder_path / manifest['files'][f'layer_{key}']
-            # Transpose back to cells × genes
-            adata.layers[key] = load_mtx(file_path, transpose=True)
+    layer_keys = _ensure_list(manifest['components']['layers'])
+    for key in layer_keys:
+        file_path = folder_path / manifest['files'][f'layer_{key}']
+        # Transpose back to cells × genes
+        adata.layers[key] = load_mtx(file_path, transpose=True)
 
     # =========================================================================
     # 11. Load raw data (if present)
