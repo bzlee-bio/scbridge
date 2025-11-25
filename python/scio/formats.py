@@ -7,8 +7,46 @@ import scipy.sparse as sp
 import scipy.io as sio
 import json
 import gzip
+import hashlib
+import pickle
 from pathlib import Path
 from typing import Union, Dict, Any
+
+
+def compute_hash(obj: Any) -> str:
+    """
+    Compute MD5 hash of a Python object for change detection.
+
+    Used for incremental updates - only rewrite components that changed.
+
+    Parameters:
+    -----------
+    obj : Any
+        Object to hash (numpy array, sparse matrix, DataFrame, dict, etc.)
+
+    Returns:
+    --------
+    str : MD5 hash string
+    """
+    # Convert object to bytes for hashing
+    if sp.issparse(obj):
+        # For sparse matrices, hash the data, indices, and shape
+        data = (obj.data.tobytes(), obj.indices.tobytes(),
+                obj.indptr.tobytes() if hasattr(obj, 'indptr') else b'',
+                str(obj.shape).encode())
+        return hashlib.md5(b''.join(data)).hexdigest()
+    elif isinstance(obj, np.ndarray):
+        return hashlib.md5(obj.tobytes()).hexdigest()
+    elif isinstance(obj, pd.DataFrame):
+        # Hash DataFrame contents using a stable representation
+        # Convert to parquet bytes for consistent hashing
+        import io
+        buffer = io.BytesIO()
+        obj.to_parquet(buffer)
+        return hashlib.md5(buffer.getvalue()).hexdigest()
+    else:
+        # For other objects, use pickle
+        return hashlib.md5(pickle.dumps(obj)).hexdigest()
 
 
 def save_mtx(matrix: Union[np.ndarray, sp.spmatrix],

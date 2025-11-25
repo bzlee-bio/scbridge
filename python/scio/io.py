@@ -8,13 +8,15 @@ import shutil
 from pathlib import Path
 from typing import Union
 
-from .writers import save_to_folder
+from .writers import save_to_folder, update_folder
 from .readers import load_from_folder
+from .formats import load_json
 
 
 def write(adata: ad.AnnData,
           path: Union[str, Path],
           overwrite: bool = False,
+          update: bool = False,
           compress: bool = True) -> None:
     """
     Write AnnData object to .scio folder
@@ -44,6 +46,9 @@ def write(adata: ad.AnnData,
         Output .scio folder path (e.g., "data.scio")
     overwrite : bool
         Whether to overwrite existing folder (default: False)
+    update : bool
+        Whether to perform incremental update using hash-based change detection
+        (default: False). Only changed components will be rewritten.
     compress : bool
         Whether to compress MTX files (default: True)
 
@@ -53,6 +58,9 @@ def write(adata: ad.AnnData,
     >>> import scio as sb
     >>> adata = ad.read_h5ad("data.h5ad")
     >>> sb.write(adata, "data.scio")
+    >>>
+    >>> # Incremental update (only changed components)
+    >>> sb.write(adata, "data.scio", update=True)
     """
     path = Path(path)
 
@@ -64,11 +72,36 @@ def write(adata: ad.AnnData,
             f"Example: sb.write(adata, 'data.scio')"
         )
 
-    # Check if folder exists
-    if path.exists() and not overwrite:
+    # Validate conflicting options
+    if overwrite and update:
+        raise ValueError("Cannot use both overwrite=True and update=True. Choose one.")
+
+    # Handle update mode
+    if update and path.exists():
+        manifest_path = path / "manifest.json"
+        if not manifest_path.exists():
+            raise ValueError(f"Invalid scio folder: manifest.json not found in {path}")
+
+        manifest = load_json(manifest_path)
+
+        if not manifest.get('hashes'):
+            # No hash info - do full save with hashes
+            print("  No hash info found in existing file. Doing full save with hash computation...", flush=True)
+            save_to_folder(adata, path, compress=compress, compute_hashes=True)
+            print(f"  ✓ Data saved with hashes to {path.name}", flush=True)
+        else:
+            # Incremental update - only write changed components
+            print("  Performing incremental update...", flush=True)
+            update_folder(adata, path, manifest, compress=compress)
+            print(f"  ✓ Incremental update complete for {path.name}", flush=True)
+
+        return
+
+    # Check if folder exists for non-update mode
+    if path.exists() and not overwrite and not update:
         raise FileExistsError(
             f"Folder already exists: {path}\n"
-            f"Use overwrite=True to replace it."
+            f"Use overwrite=True to replace it, or update=True for incremental update."
         )
 
     # Remove existing folder if overwrite is True
@@ -76,7 +109,7 @@ def write(adata: ad.AnnData,
         shutil.rmtree(path)
 
     print(f"  Saving data to {path.name}...", flush=True)
-    save_to_folder(adata, path, compress=compress)
+    save_to_folder(adata, path, compress=compress, compute_hashes=True)
     print(f"  ✓ Data saved to {path.name}", flush=True)
 
 
