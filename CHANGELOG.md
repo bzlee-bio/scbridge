@@ -1,22 +1,43 @@
 # Changelog
 
-All notable changes to scBridge will be documented in this file.
+All notable changes to scio will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### In Development
-- Initial package implementation
-- Testing and validation in progress
-
-## [1.0.0] - TBD
+## [0.1.2] - 2025-01-25
 
 ### Added
-- **Python package (scbridge)**:
-  - `write()` function to save AnnData to tar format
-  - `read()` function to load AnnData from tar format
+- **Binary CSC format**: New high-performance sparse matrix storage
+  - Stores matrices as binary numpy files (data.npy, indices.npy, indptr.npy)
+  - 3.4x faster than H5AD in R, 14.2x faster than MTX
+  - Zero-copy transpose using MatrixExtra::t_shallow() in R
+
+- **Orientation metadata**: `cells_x_genes` orientation for v0.1.2+ format
+  - Expression matrices stored in cells x genes orientation
+  - Eliminates transpose on Python read
+  - R readers check orientation and transpose only when needed
+
+- **reticulate+numpy loader**: Primary .npy file loader in R
+  - Replaces RcppCNPy which had segfault issues on large matrices
+  - Falls back to RcppCNPy if reticulate/numpy unavailable
+
+### Changed
+- Expression matrices (X, layers, raw.X) now stored in cells x genes orientation
+- Manifest includes `orientation` field to indicate matrix layout
+- R readers detect format version and handle transpose accordingly
+
+### Performance
+- Python read: ~8.9s (vs H5AD 6.1s)
+- Python write: ~7.8s (vs H5AD 9.5s)
+- R read: ~29.4s (vs H5AD/zellkonverter 99.3s, MTX 418.4s)
+
+## [0.1.1] - 2025-01-20
+
+### Added
+- **Python package (scio)**:
+  - `write()` function to save AnnData to .scio folder format
+  - `read()` function to load AnnData from .scio folder
   - Complete preservation of all 10 AnnData components:
     - X (expression matrix)
     - obs (cell metadata)
@@ -28,89 +49,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - layers (additional matrices)
     - raw (raw counts)
     - uns (unstructured metadata)
+  - Incremental updates with hash-based change detection
 
-- **R package (scBridge)**:
-  - `write()` function to save Seurat/SCE to tar format
-  - `read()` function to load as Seurat/SCE from tar format
+- **R package (scio)**:
+  - `scio_write()` function to save Seurat/SCE to .scio folder
+  - `scio_read()` function to load as Seurat/SCE
   - Full support for Seurat objects
   - Full support for SingleCellExperiment objects
-  - Advanced `write_components()` and `read_components()` for direct component manipulation
 
 - **Cross-platform compatibility**:
-  - Python (AnnData) ↔ R (Seurat) round-trip preservation
-  - Python (AnnData) ↔ R (SingleCellExperiment) round-trip preservation
+  - Python (AnnData) <-> R (Seurat) round-trip preservation
+  - Python (AnnData) <-> R (SingleCellExperiment) round-trip preservation
   - Universal format using MTX and Parquet
 
-- **Optimizations**:
-  - Uncompressed tar for fast extraction (~2-3s)
+- **Efficient storage**:
+  - Folder format (no tar extraction needed)
   - Parquet format for metadata (10-50x faster than CSV)
-  - MTX format for sparse matrices (universal compatibility)
-  - Support for 1M+ cell datasets
-
-- **Documentation**:
-  - Complete API documentation for Python and R
-  - Format specification (v1.0)
-  - Cross-platform usage examples
-  - Release guide
+  - MTX format for sparse matrices
+  - Optional gzip compression for MTX files
 
 ### Technical Details
 - Python: Requires Python >= 3.8, anndata >= 0.8.0, pandas >= 1.5.0
 - R: Requires R >= 4.0.0, Matrix, arrow, jsonlite
-- Format: scBridge v1.0 (see specs/format_v1.md)
-
-## Release Notes Template
-
-### [X.Y.Z] - YYYY-MM-DD
-
-#### Added
-- New features
-
-#### Changed
-- Changes to existing features
-
-#### Deprecated
-- Features that will be removed in future versions
-
-#### Removed
-- Removed features
-
-#### Fixed
-- Bug fixes
-
-#### Security
-- Security improvements
-
----
-
-## Version History (Post-Release)
-
-*Version history will be added after releases*
 
 ---
 
 ## Planned Features (Future Releases)
 
-### v1.1.0 (Potential)
 - [ ] Chunked reading for very large datasets
 - [ ] Progress bars for long operations
-- [ ] Validation utilities
-- [ ] More detailed error messages
-
-### v1.2.0 (Potential)
 - [ ] Cloud storage support (S3, GCS)
 - [ ] Streaming read for memory-constrained systems
-- [ ] Additional metadata preservation
-
-### v2.0.0 (Potential - Breaking Changes)
-- [ ] Format v2.0 with enhanced compression options
-- [ ] Plugin system for custom components
-- [ ] Advanced querying capabilities
 
 ---
 
 ## Contributing
 
-To contribute to scBridge, please:
+To contribute to scio, please:
 1. Check existing issues and pull requests
 2. Follow the coding standards
 3. Add tests for new features
@@ -123,5 +98,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Questions or Issues?
 
-- GitHub Issues: https://github.com/YOUR_USERNAME/scbridge/issues
-- Documentation: https://github.com/YOUR_USERNAME/scbridge
+- GitHub Issues: https://github.com/bzlee-bio/scio/issues
+- Documentation: https://github.com/bzlee-bio/scio

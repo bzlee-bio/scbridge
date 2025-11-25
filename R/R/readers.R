@@ -1,6 +1,65 @@
 # Readers module - Load all components from folder structure
 # Part of the scio R package
 
+
+#' Internal: Load sparse matrix with format auto-detection
+#'
+#' Detects v2.x binary CSC format vs v1.x MTX format and loads accordingly.
+#' Handles orientation metadata from manifest for proper transpose behavior.
+#'
+#' @param folder_path Path to data folder
+#' @param file_base Base file path from manifest (e.g., "matrix" or "matrix.mtx.gz")
+#' @param manifest Manifest object
+#' @param is_expression_matrix If TRUE, this is X/layer/raw.X that should be cells×genes
+#' @param transpose For non-expression matrices (obsp/varp), whether to transpose
+#' @return Sparse matrix
+.load_sparse_matrix <- function(folder_path, file_base, manifest,
+                                is_expression_matrix = FALSE, transpose = FALSE) {
+  file_path <- file.path(folder_path, file_base)
+
+  # Check orientation from manifest (v0.1.2+)
+  orientation <- manifest$orientation
+  if (is.null(orientation)) {
+    orientation <- "genes_x_cells"  # Default for legacy formats
+  }
+
+  # Determine if we need to transpose
+  if (is_expression_matrix) {
+    # For expression matrices (X, layers, raw.X)
+    if (orientation == "cells_x_genes") {
+      # v0.1.2: already in cells×genes format - no transpose needed
+      need_transpose <- FALSE
+    } else {
+      # v2.0 or v1.x: genes×cells format - need transpose
+      need_transpose <- TRUE
+    }
+  } else {
+    # For non-expression matrices (obsp, varp), use the provided transpose flag
+    need_transpose <- transpose
+  }
+
+  # Try v2.x binary CSC format first
+  shape_file <- paste0(file_path, ".shape.json")
+  if (file.exists(shape_file)) {
+    # v2.x binary CSC format
+    return(load_sparse_binary(file_path, transpose = need_transpose))
+  }
+
+  # Fallback to v1.x MTX format
+  mtx_file <- file_path
+  if (!file.exists(mtx_file)) {
+    # Try with .gz extension
+    mtx_file <- paste0(file_path, ".gz")
+  }
+
+  mat <- load_mtx(mtx_file)
+  if (need_transpose) {
+    mat <- Matrix::t(mat)
+  }
+  return(mat)
+}
+
+
 #' Load all data components from folder structure
 #'
 #' This loads ALL 10 components:
@@ -25,12 +84,12 @@ load_from_folder <- function(folder_path) {
   result <- list()
 
   # =========================================================================
-  # 1. Load X matrix (transpose from genes × cells to cells × genes)
+  # 1. Load X matrix (cells × genes)
+  # v0.1.2: already cells×genes, no transpose needed
+  # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
   # =========================================================================
-  matrix_file <- file.path(folder_path, manifest$files$X)
-  X <- load_mtx(matrix_file)
-  X <- Matrix::t(X)  # Transpose to cells × genes
-  result$X <- X
+  result$X <- .load_sparse_matrix(folder_path, manifest$files$X, manifest,
+                                   is_expression_matrix = TRUE)
 
   # =========================================================================
   # 2. Load cell IDs (obs_names)
@@ -100,28 +159,28 @@ load_from_folder <- function(folder_path) {
   }
 
   # =========================================================================
-  # 8. Load obsp (cell-cell graphs)
+  # 8. Load obsp (cell-cell graphs) - symmetric, no transpose needed
   # =========================================================================
   result$obsp <- list()
   if (length(manifest$components$obsp) > 0) {
     for (key in manifest$components$obsp) {
       file_key <- paste0("obsp_", key)
-      file_path <- file.path(folder_path, manifest$files[[file_key]])
-      result$obsp[[key]] <- load_mtx(file_path)
+      result$obsp[[key]] <- .load_sparse_matrix(folder_path, manifest$files[[file_key]],
+                                                 manifest, transpose = FALSE)
       rownames(result$obsp[[key]]) <- obs_names
       colnames(result$obsp[[key]]) <- obs_names
     }
   }
 
   # =========================================================================
-  # 9. Load varp (gene-gene graphs)
+  # 9. Load varp (gene-gene graphs) - symmetric, no transpose needed
   # =========================================================================
   result$varp <- list()
   if (length(manifest$components$varp) > 0) {
     for (key in manifest$components$varp) {
       file_key <- paste0("varp_", key)
-      file_path <- file.path(folder_path, manifest$files[[file_key]])
-      result$varp[[key]] <- load_mtx(file_path)
+      result$varp[[key]] <- .load_sparse_matrix(folder_path, manifest$files[[file_key]],
+                                                 manifest, transpose = FALSE)
       rownames(result$varp[[key]]) <- var_names
       colnames(result$varp[[key]]) <- var_names
     }
@@ -129,14 +188,15 @@ load_from_folder <- function(folder_path) {
 
   # =========================================================================
   # 10. Load layers (additional matrices)
+  # v0.1.2: already cells×genes, no transpose needed
+  # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
   # =========================================================================
   result$layers <- list()
   if (length(manifest$components$layers) > 0) {
     for (key in manifest$components$layers) {
       file_key <- paste0("layer_", key)
-      file_path <- file.path(folder_path, manifest$files[[file_key]])
-      layer_mat <- load_mtx(file_path)
-      result$layers[[key]] <- Matrix::t(layer_mat)  # Transpose to cells × genes
+      result$layers[[key]] <- .load_sparse_matrix(folder_path, manifest$files[[file_key]],
+                                                   manifest, is_expression_matrix = TRUE)
       rownames(result$layers[[key]]) <- obs_names
       colnames(result$layers[[key]]) <- var_names
     }
@@ -144,15 +204,15 @@ load_from_folder <- function(folder_path) {
 
   # =========================================================================
   # 11. Load raw data (if present)
+  # v0.1.2: raw.X already cells×genes, no transpose needed
+  # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
   # =========================================================================
   if (manifest$components$raw) {
     result$raw <- list()
 
     # Load raw X matrix
-    raw_matrix_file <- file.path(folder_path, strsplit(manifest$files$raw_X, "/")[[1]][2])
-    raw_matrix_path <- file.path(folder_path, "raw", basename(raw_matrix_file))
-    raw_X <- load_mtx(raw_matrix_path)
-    result$raw$X <- Matrix::t(raw_X)  # Transpose to cells × genes
+    result$raw$X <- .load_sparse_matrix(folder_path, manifest$files$raw_X,
+                                         manifest, is_expression_matrix = TRUE)
 
     # Load raw gene IDs
     raw_features_file <- file.path(folder_path, strsplit(manifest$files$raw_features, "/")[[1]][2])

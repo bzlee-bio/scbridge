@@ -127,3 +127,119 @@ save_json <- function(data, file_path, pretty = TRUE) {
   jsonlite::write_json(data, file_path, pretty = pretty, auto_unbox = TRUE)
   return(file_path)
 }
+
+
+#' Load sparse matrix from binary CSC format (v2.x)
+#'
+#' This loads the binary CSC format written by Python (v2.0+).
+#' Files: {base_path}.data.npy, {base_path}.indices.npy, {base_path}.indptr.npy, {base_path}.shape.json
+#'
+#' Uses reticulate+numpy for reliable large array loading. Falls back to RcppCNPy if reticulate
+#' is not available.
+#'
+#' @param base_path Base path to binary files (without extension)
+#' @param transpose Whether to transpose after loading (default: FALSE)
+#' @return dgCMatrix (or dgRMatrix if transpose=TRUE with MatrixExtra available)
+#' @importFrom Matrix sparseMatrix
+load_sparse_binary <- function(base_path, transpose = FALSE) {
+  # Load shape metadata
+  shape_file <- paste0(base_path, ".shape.json")
+  if (!file.exists(shape_file)) {
+    stop(paste("Shape file not found:", shape_file))
+  }
+  shape_meta <- load_json(shape_file)
+
+  # Try reticulate+numpy first (most reliable for large arrays)
+  if (requireNamespace("reticulate", quietly = TRUE)) {
+    np <- tryCatch({
+      reticulate::import("numpy", convert = FALSE)
+    }, error = function(e) NULL)
+
+    if (!is.null(np)) {
+      # Load using numpy (handles int32 and large arrays reliably)
+      data <- reticulate::py_to_r(np$load(paste0(base_path, ".data.npy")))
+      indices <- reticulate::py_to_r(np$load(paste0(base_path, ".indices.npy")))
+      indptr <- reticulate::py_to_r(np$load(paste0(base_path, ".indptr.npy")))
+    } else {
+      # Python/numpy not available, fall back to RcppCNPy
+      data <- NULL
+    }
+  } else {
+    data <- NULL
+  }
+
+  # Fallback to RcppCNPy if reticulate failed
+  if (is.null(data)) {
+    if (!requireNamespace("RcppCNPy", quietly = TRUE)) {
+      stop("Either reticulate+numpy or RcppCNPy package required for binary format.\n",
+           "Install with: install.packages('reticulate') or install.packages('RcppCNPy')")
+    }
+    data <- RcppCNPy::npyLoad(paste0(base_path, ".data.npy"))
+    indices <- RcppCNPy::npyLoad(paste0(base_path, ".indices.npy"))
+    indptr <- RcppCNPy::npyLoad(paste0(base_path, ".indptr.npy"))
+  }
+
+  # Reconstruct dgCMatrix (CSC format)
+  # Note: R uses 0-based indices internally for dgCMatrix, same as Python
+  mat <- new("dgCMatrix",
+    x = as.numeric(data),
+    i = as.integer(indices),
+    p = as.integer(indptr),
+    Dim = as.integer(shape_meta$shape)
+  )
+
+  if (transpose) {
+    # Try to use MatrixExtra::t_shallow() for O(1) transpose if available
+    # t_shallow() returns dgRMatrix (CSR) which is semantically transposed without data copy
+    if (requireNamespace("MatrixExtra", quietly = TRUE)) {
+      mat <- MatrixExtra::t_shallow(mat)
+    } else {
+      # Fallback to regular transpose (creates new matrix)
+      mat <- Matrix::t(mat)
+    }
+  }
+
+  return(mat)
+}
+
+
+#' Save sparse matrix to binary CSC format
+#'
+#' Saves a sparse matrix in binary CSC format for fast loading.
+#' Creates: {base_path}.data.npy, {base_path}.indices.npy, {base_path}.indptr.npy, {base_path}.shape.json
+#'
+#' @param matrix Sparse matrix to save (will be converted to CSC if needed)
+#' @param base_path Base output path (without extension)
+#' @param orientation Data orientation metadata (e.g., "cells_x_genes" or "genes_x_cells")
+#' @return Base path to saved files
+save_sparse_binary <- function(matrix, base_path, orientation = NULL) {
+  if (!requireNamespace("RcppCNPy", quietly = TRUE)) {
+    stop("RcppCNPy package required for binary format. Install with: install.packages('RcppCNPy')")
+  }
+
+  # Convert to dgCMatrix (CSC format) if needed
+  if (!inherits(matrix, "dgCMatrix")) {
+    matrix <- as(matrix, "dgCMatrix")
+  }
+
+  # Save CSC components as binary numpy files
+  RcppCNPy::npySave(paste0(base_path, ".data.npy"), matrix@x)
+  RcppCNPy::npySave(paste0(base_path, ".indices.npy"), matrix@i)
+  RcppCNPy::npySave(paste0(base_path, ".indptr.npy"), matrix@p)
+
+  # Save shape metadata
+  shape_meta <- list(
+    shape = matrix@Dim,
+    dtype = "float64",
+    nnz = length(matrix@x),
+    format = "csc_binary"
+  )
+
+  if (!is.null(orientation)) {
+    shape_meta$orientation <- orientation
+  }
+
+  save_json(shape_meta, paste0(base_path, ".shape.json"))
+
+  return(base_path)
+}

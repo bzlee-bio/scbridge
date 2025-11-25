@@ -12,6 +12,7 @@ import warnings
 
 from .formats import (
     save_mtx, save_parquet, save_json, save_tsv_gz,
+    save_sparse_parquet,
     numpy_to_json_serializable, compute_hash, load_json
 )
 
@@ -57,18 +58,28 @@ def save_to_folder(adata: ad.AnnData,
     hashes = {}  # Store hashes for incremental updates
 
     # =========================================================================
-    # 1. X - Expression matrix (cells × genes, transposed to genes × cells for R)
+    # 1. X - Expression matrix (cells × genes) - store as CSC directly
     # =========================================================================
-    matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
+    matrix_base = "matrix"
 
-    # Transpose for R compatibility (genes × cells)
+    # v0.1.2: Store in cells×genes orientation (Python's native format)
+    # This eliminates expensive transpose operations on write
+    # R will transpose on read using O(1) MatrixExtra::t_shallow()
     if sp.issparse(adata.X):
-        X_transposed = adata.X.T
+        if sp.isspmatrix_csc(adata.X):
+            # Already CSC cells×genes - store directly
+            X_to_store = adata.X
+        elif sp.isspmatrix_csr(adata.X):
+            # CSR.T gives CSC (cells×genes transposed = genes×cells, but shape stays same)
+            # Actually we want cells×genes, so just convert CSR to CSC
+            X_to_store = adata.X.tocsc()
+        else:
+            X_to_store = sp.csc_matrix(adata.X)
     else:
-        X_transposed = sp.csr_matrix(adata.X.T)
+        X_to_store = sp.csc_matrix(adata.X)
 
-    save_mtx(X_transposed, folder_path / matrix_file, compress=compress)
-    saved_files['X'] = matrix_file
+    save_sparse_parquet(X_to_store, folder_path / matrix_base, orientation='cells_x_genes')
+    saved_files['X'] = matrix_base
     if compute_hashes:
         hashes['X'] = compute_hash(adata.X)
 
@@ -164,9 +175,9 @@ def save_to_folder(adata: ad.AnnData,
         obsp_dir.mkdir(exist_ok=True)
 
         for key in adata.obsp.keys():
-            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
-            save_mtx(adata.obsp[key], obsp_dir / graph_file, compress=compress)
-            saved_files[f'obsp_{key}'] = f"obsp/{graph_file}"
+            graph_base = key
+            save_sparse_parquet(adata.obsp[key], obsp_dir / graph_base)
+            saved_files[f'obsp_{key}'] = f"obsp/{graph_base}"
             if compute_hashes:
                 hashes[f'obsp_{key}'] = compute_hash(adata.obsp[key])
 
@@ -178,9 +189,9 @@ def save_to_folder(adata: ad.AnnData,
         varp_dir.mkdir(exist_ok=True)
 
         for key in adata.varp.keys():
-            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
-            save_mtx(adata.varp[key], varp_dir / graph_file, compress=compress)
-            saved_files[f'varp_{key}'] = f"varp/{graph_file}"
+            graph_base = key
+            save_sparse_parquet(adata.varp[key], varp_dir / graph_base)
+            saved_files[f'varp_{key}'] = f"varp/{graph_base}"
             if compute_hashes:
                 hashes[f'varp_{key}'] = compute_hash(adata.varp[key])
 
@@ -192,16 +203,22 @@ def save_to_folder(adata: ad.AnnData,
         layers_dir.mkdir(exist_ok=True)
 
         for key in adata.layers.keys():
-            layer_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
+            layer_base = key
 
-            # Transpose for R (genes × cells)
-            if sp.issparse(adata.layers[key]):
-                layer_transposed = adata.layers[key].T
+            # v0.1.2: Store in cells×genes orientation (no transpose)
+            layer = adata.layers[key]
+            if sp.issparse(layer):
+                if sp.isspmatrix_csc(layer):
+                    layer_to_store = layer
+                elif sp.isspmatrix_csr(layer):
+                    layer_to_store = layer.tocsc()
+                else:
+                    layer_to_store = sp.csc_matrix(layer)
             else:
-                layer_transposed = sp.csr_matrix(adata.layers[key].T)
+                layer_to_store = sp.csc_matrix(layer)
 
-            save_mtx(layer_transposed, layers_dir / layer_file, compress=compress)
-            saved_files[f'layer_{key}'] = f"layers/{layer_file}"
+            save_sparse_parquet(layer_to_store, layers_dir / layer_base, orientation='cells_x_genes')
+            saved_files[f'layer_{key}'] = f"layers/{layer_base}"
             if compute_hashes:
                 hashes[f'layer_{key}'] = compute_hash(adata.layers[key])
 
@@ -212,16 +229,22 @@ def save_to_folder(adata: ad.AnnData,
         raw_dir = folder_path / "raw"
         raw_dir.mkdir(exist_ok=True)
 
-        # Save raw X matrix
-        raw_matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
+        # Save raw X matrix - v0.1.2: cells×genes orientation (no transpose)
+        raw_matrix_base = "matrix"
 
-        if sp.issparse(adata.raw.X):
-            raw_X_transposed = adata.raw.X.T
+        raw_X = adata.raw.X
+        if sp.issparse(raw_X):
+            if sp.isspmatrix_csc(raw_X):
+                raw_X_to_store = raw_X
+            elif sp.isspmatrix_csr(raw_X):
+                raw_X_to_store = raw_X.tocsc()
+            else:
+                raw_X_to_store = sp.csc_matrix(raw_X)
         else:
-            raw_X_transposed = sp.csr_matrix(adata.raw.X.T)
+            raw_X_to_store = sp.csc_matrix(raw_X)
 
-        save_mtx(raw_X_transposed, raw_dir / raw_matrix_file, compress=compress)
-        saved_files['raw_X'] = f"raw/{raw_matrix_file}"
+        save_sparse_parquet(raw_X_to_store, raw_dir / raw_matrix_base, orientation='cells_x_genes')
+        saved_files['raw_X'] = f"raw/{raw_matrix_base}"
         if compute_hashes:
             hashes['raw_X'] = compute_hash(adata.raw.X)
 
@@ -277,7 +300,8 @@ def save_to_folder(adata: ad.AnnData,
     # Create manifest file
     # =========================================================================
     manifest = {
-        'format': 'scio v1.1' if compute_hashes else 'scio v1.0',
+        'format': 'scio v0.1.2',  # Binary CSC format with cells×genes orientation
+        'orientation': 'cells_x_genes',  # v0.1.2: no transpose on Python read, R transposes on read
         'created_by': 'scio (Python)',
         'dimensions': {
             'n_obs': int(adata.n_obs),
@@ -354,16 +378,22 @@ def update_folder(adata: ad.AnnData,
             return False
 
     # =========================================================================
-    # 1. X - Expression matrix
+    # 1. X - Expression matrix (cells×genes, no transpose)
     # =========================================================================
-    matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
-    saved_files['X'] = matrix_file
+    matrix_base = "matrix"
+    saved_files['X'] = matrix_base
     def save_x():
+        # v0.1.2: Store in cells×genes orientation (no transpose)
         if sp.issparse(adata.X):
-            X_transposed = adata.X.T
+            if sp.isspmatrix_csc(adata.X):
+                X_to_store = adata.X
+            elif sp.isspmatrix_csr(adata.X):
+                X_to_store = adata.X.tocsc()
+            else:
+                X_to_store = sp.csc_matrix(adata.X)
         else:
-            X_transposed = sp.csr_matrix(adata.X.T)
-        save_mtx(X_transposed, folder_path / matrix_file, compress=compress)
+            X_to_store = sp.csc_matrix(adata.X)
+        save_sparse_parquet(X_to_store, folder_path / matrix_base, orientation='cells_x_genes')
     check_and_update(adata.X, 'X', save_x)
 
     # =========================================================================
@@ -438,11 +468,11 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.obsp.keys():
             hash_key = f'obsp_{key}'
-            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
-            saved_files[hash_key] = f"obsp/{graph_file}"
+            graph_base = key
+            saved_files[hash_key] = f"obsp/{graph_base}"
 
-            def save_obsp(k=key, gf=graph_file):
-                save_mtx(adata.obsp[k], obsp_dir / gf, compress=compress)
+            def save_obsp(k=key, gb=graph_base):
+                save_sparse_parquet(adata.obsp[k], obsp_dir / gb)
             check_and_update(adata.obsp[key], hash_key, save_obsp)
 
     # =========================================================================
@@ -454,11 +484,11 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.varp.keys():
             hash_key = f'varp_{key}'
-            graph_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
-            saved_files[hash_key] = f"varp/{graph_file}"
+            graph_base = key
+            saved_files[hash_key] = f"varp/{graph_base}"
 
-            def save_varp(k=key, gf=graph_file):
-                save_mtx(adata.varp[k], varp_dir / gf, compress=compress)
+            def save_varp(k=key, gb=graph_base):
+                save_sparse_parquet(adata.varp[k], varp_dir / gb)
             check_and_update(adata.varp[key], hash_key, save_varp)
 
     # =========================================================================
@@ -470,15 +500,22 @@ def update_folder(adata: ad.AnnData,
 
         for key in adata.layers.keys():
             hash_key = f'layer_{key}'
-            layer_file = f"{key}.mtx.gz" if compress else f"{key}.mtx"
-            saved_files[hash_key] = f"layers/{layer_file}"
+            layer_base = key
+            saved_files[hash_key] = f"layers/{layer_base}"
 
-            def save_layer(k=key, lf=layer_file):
-                if sp.issparse(adata.layers[k]):
-                    layer_transposed = adata.layers[k].T
+            def save_layer(k=key, lb=layer_base):
+                # v0.1.2: Store in cells×genes orientation (no transpose)
+                layer = adata.layers[k]
+                if sp.issparse(layer):
+                    if sp.isspmatrix_csc(layer):
+                        layer_to_store = layer
+                    elif sp.isspmatrix_csr(layer):
+                        layer_to_store = layer.tocsc()
+                    else:
+                        layer_to_store = sp.csc_matrix(layer)
                 else:
-                    layer_transposed = sp.csr_matrix(adata.layers[k].T)
-                save_mtx(layer_transposed, layers_dir / lf, compress=compress)
+                    layer_to_store = sp.csc_matrix(layer)
+                save_sparse_parquet(layer_to_store, layers_dir / lb, orientation='cells_x_genes')
             check_and_update(adata.layers[key], hash_key, save_layer)
 
     # =========================================================================
@@ -488,14 +525,21 @@ def update_folder(adata: ad.AnnData,
         raw_dir = folder_path / "raw"
         raw_dir.mkdir(exist_ok=True)
 
-        raw_matrix_file = "matrix.mtx.gz" if compress else "matrix.mtx"
-        saved_files['raw_X'] = f"raw/{raw_matrix_file}"
+        raw_matrix_base = "matrix"
+        saved_files['raw_X'] = f"raw/{raw_matrix_base}"
         def save_raw_x():
-            if sp.issparse(adata.raw.X):
-                raw_X_transposed = adata.raw.X.T
+            # v0.1.2: Store in cells×genes orientation (no transpose)
+            raw_X = adata.raw.X
+            if sp.issparse(raw_X):
+                if sp.isspmatrix_csc(raw_X):
+                    raw_X_to_store = raw_X
+                elif sp.isspmatrix_csr(raw_X):
+                    raw_X_to_store = raw_X.tocsc()
+                else:
+                    raw_X_to_store = sp.csc_matrix(raw_X)
             else:
-                raw_X_transposed = sp.csr_matrix(adata.raw.X.T)
-            save_mtx(raw_X_transposed, raw_dir / raw_matrix_file, compress=compress)
+                raw_X_to_store = sp.csc_matrix(raw_X)
+            save_sparse_parquet(raw_X_to_store, raw_dir / raw_matrix_base, orientation='cells_x_genes')
         check_and_update(adata.raw.X, 'raw_X', save_raw_x)
 
         if adata.raw.var.shape[1] > 0:
@@ -526,7 +570,8 @@ def update_folder(adata: ad.AnnData,
     # =========================================================================
     # Update manifest
     # =========================================================================
-    manifest['format'] = 'scio v1.1'
+    manifest['format'] = 'scio v0.1.2'
+    manifest['orientation'] = 'cells_x_genes'
     manifest['hashes'] = new_hashes
     manifest['files'] = saved_files
 

@@ -109,7 +109,9 @@ def write(adata: ad.AnnData,
         shutil.rmtree(path)
 
     print(f"  Saving data to {path.name}...", flush=True)
-    save_to_folder(adata, path, compress=compress, compute_hashes=True)
+    # Skip hash computation on fresh write for speed; hashes are only needed for incremental updates
+    # If user plans to do update=True later, they can do a full save with update=True first time
+    save_to_folder(adata, path, compress=compress, compute_hashes=False)
     print(f"  ✓ Data saved to {path.name}", flush=True)
 
 

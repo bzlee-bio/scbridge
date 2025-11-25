@@ -9,7 +9,8 @@ from typing import Optional, List, Union
 import warnings
 
 from .formats import (
-    load_mtx, load_parquet, load_json, load_tsv_gz
+    load_mtx, load_parquet, load_json, load_tsv_gz,
+    load_sparse_parquet
 )
 
 
@@ -24,6 +25,57 @@ def _ensure_list(value: Union[str, List, None]) -> List:
     if isinstance(value, list):
         return value
     return list(value)
+
+
+def _load_sparse_matrix(folder_path: Path, file_key: str, manifest: dict,
+                        transpose: bool = False, is_expression_matrix: bool = False):
+    """
+    Load a sparse matrix from either binary CSC (v2.x) or MTX (v1.x) format.
+
+    Automatically detects the format based on file path:
+    - v0.1.2+: base path (e.g., "matrix") -> loads matrix.data.npy, matrix.indices.npy, etc.
+             with cells×genes orientation - no transpose needed for expression matrices
+    - v2.0: same binary format but genes×cells orientation - need transpose
+    - v1.x: mtx file path (e.g., "matrix.mtx.gz") -> loads via load_mtx
+
+    Parameters:
+    -----------
+    is_expression_matrix : bool
+        If True, this is X, layer, or raw.X matrix that should be cells×genes.
+        For v0.1.2 cells_x_genes format, no transpose is needed.
+        For v2.0 genes_x_cells format, transpose is needed.
+    """
+    file_base = manifest['files'][file_key]
+    file_path = folder_path / file_base
+    file_str = str(file_base)
+
+    # Check orientation from manifest (v0.1.2+)
+    orientation = manifest.get('orientation', 'genes_x_cells')  # Default for legacy
+
+    # Determine if we need to transpose
+    if is_expression_matrix:
+        # For expression matrices (X, layers, raw.X)
+        if orientation == 'cells_x_genes':
+            # v0.1.2: already in cells×genes format - no transpose needed
+            need_transpose = False
+        else:
+            # v2.0 or v1.x: genes×cells format - need transpose
+            need_transpose = True
+    else:
+        # For non-expression matrices (obsp, varp), use the provided transpose flag
+        need_transpose = transpose
+
+    # v2.0+ binary CSC format: base path points to files like *.data.npy, *.shape.json
+    shape_file = folder_path / (file_base + '.shape.json')
+    if shape_file.exists():
+        # v2.0+ binary CSC format
+        return load_sparse_parquet(file_path, shape_file=shape_file, transpose=need_transpose)
+    elif file_str.endswith('.mtx') or file_str.endswith('.mtx.gz'):
+        # v1.x MTX format (always genes×cells, need transpose for expression matrices)
+        return load_mtx(file_path, transpose=need_transpose)
+    else:
+        # Fallback: try v2.0+ binary format
+        return load_sparse_parquet(file_path, transpose=need_transpose)
 
 
 def load_from_folder(folder_path: Path) -> ad.AnnData:
@@ -64,10 +116,11 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     manifest = load_json(manifest_path)
 
     # =========================================================================
-    # 1. Load X matrix (transposed from genes × cells to cells × genes)
+    # 1. Load X matrix (cells × genes)
+    # v0.1.2: already cells×genes, no transpose needed
+    # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
     # =========================================================================
-    matrix_file = folder_path / manifest['files']['X']
-    X = load_mtx(matrix_file, transpose=True)  # Transpose back to cells × genes
+    X = _load_sparse_matrix(folder_path, 'X', manifest, is_expression_matrix=True)
 
     # =========================================================================
     # 2. Load cell IDs (obs_names)
@@ -136,35 +189,34 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     # =========================================================================
     obsp_keys = _ensure_list(manifest['components']['obsp'])
     for key in obsp_keys:
-        file_path = folder_path / manifest['files'][f'obsp_{key}']
-        adata.obsp[key] = load_mtx(file_path, transpose=False)
+        adata.obsp[key] = _load_sparse_matrix(folder_path, f'obsp_{key}', manifest, transpose=False)
 
     # =========================================================================
     # 9. Load varp (gene-gene graphs)
     # =========================================================================
     varp_keys = _ensure_list(manifest['components']['varp'])
     for key in varp_keys:
-        file_path = folder_path / manifest['files'][f'varp_{key}']
-        adata.varp[key] = load_mtx(file_path, transpose=False)
+        adata.varp[key] = _load_sparse_matrix(folder_path, f'varp_{key}', manifest, transpose=False)
 
     # =========================================================================
     # 10. Load layers (additional matrices)
+    # v0.1.2: already cells×genes, no transpose needed
+    # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
     # =========================================================================
     layer_keys = _ensure_list(manifest['components']['layers'])
     for key in layer_keys:
-        file_path = folder_path / manifest['files'][f'layer_{key}']
-        # Transpose back to cells × genes
-        adata.layers[key] = load_mtx(file_path, transpose=True)
+        adata.layers[key] = _load_sparse_matrix(folder_path, f'layer_{key}', manifest, is_expression_matrix=True)
 
     # =========================================================================
     # 11. Load raw data (if present)
+    # v0.1.2: raw.X already cells×genes, no transpose needed
+    # v2.0/v1.x: genes×cells, transpose needed (handled by is_expression_matrix flag)
     # =========================================================================
     if manifest['components']['raw']:
         raw_dir = folder_path / "raw"
 
         # Load raw X matrix
-        raw_matrix_file = raw_dir / manifest['files']['raw_X'].split('/')[-1]
-        raw_X = load_mtx(raw_matrix_file, transpose=True)  # Transpose to cells × genes
+        raw_X = _load_sparse_matrix(folder_path, 'raw_X', manifest, is_expression_matrix=True)
 
         # Load raw gene IDs
         raw_features_file = raw_dir / manifest['files']['raw_features'].split('/')[-1]

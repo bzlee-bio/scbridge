@@ -1,6 +1,26 @@
 # Seurat object converters
 # Part of the scio R package
 
+
+#' Internal: Optimized transpose for sparse matrices
+#'
+#' Uses MatrixExtra::t_shallow() for O(1) transpose when available,
+#' falls back to Matrix::t() otherwise.
+#'
+#' @param mat Sparse matrix (dgCMatrix)
+#' @return Transposed matrix (dgRMatrix if MatrixExtra available, dgCMatrix otherwise)
+.fast_transpose_seurat <- function(mat) {
+  if (requireNamespace("MatrixExtra", quietly = TRUE)) {
+    # O(1) transpose - returns dgRMatrix (CSR) which is semantically transposed
+    # without copying data
+    return(MatrixExtra::t_shallow(mat))
+  } else {
+    # Fallback to regular transpose
+    return(Matrix::t(mat))
+  }
+}
+
+
 #' Convert components list to Seurat object
 #'
 #' @param components Named list with X, obs, var, obsm, obsp, etc.
@@ -11,9 +31,10 @@ create_seurat_from_components <- function(components) {
     stop("Seurat package required. Install with: install.packages('Seurat')")
   }
 
-  # Create Seurat object from count matrix (transpose to genes × cells)
+  # Create Seurat object from count matrix - transpose cells×genes to genes×cells
+  # Use fast transpose (O(1) with MatrixExtra, regular otherwise)
   seurat_obj <- Seurat::CreateSeuratObject(
-    counts = Matrix::t(components$X),
+    counts = .fast_transpose_seurat(components$X),
     meta.data = components$obs
   )
 
@@ -45,9 +66,10 @@ create_seurat_from_components <- function(components) {
   # Add layers if present
   if (length(components$layers) > 0) {
     for (layer_name in names(components$layers)) {
-      # Add as assay layer (transpose to genes × cells)
+      # Add as assay layer - transpose cells×genes to genes×cells
+      # Use fast transpose (O(1) with MatrixExtra, regular otherwise)
       seurat_obj[[layer_name]] <- Seurat::CreateAssayObject(
-        counts = Matrix::t(components$layers[[layer_name]])
+        counts = .fast_transpose_seurat(components$layers[[layer_name]])
       )
     }
   }

@@ -1,6 +1,26 @@
 # SingleCellExperiment object converters
 # Part of the scio R package
 
+
+#' Internal: Optimized transpose for sparse matrices
+#'
+#' Uses MatrixExtra::t_shallow() for O(1) transpose when available,
+#' falls back to Matrix::t() otherwise.
+#'
+#' @param mat Sparse matrix (dgCMatrix)
+#' @return Transposed matrix (dgRMatrix if MatrixExtra available, dgCMatrix otherwise)
+.fast_transpose <- function(mat) {
+  if (requireNamespace("MatrixExtra", quietly = TRUE)) {
+    # O(1) transpose - returns dgRMatrix (CSR) which is semantically transposed
+    # without copying data
+    return(MatrixExtra::t_shallow(mat))
+  } else {
+    # Fallback to regular transpose
+    return(Matrix::t(mat))
+  }
+}
+
+
 #' Convert components list to SingleCellExperiment object
 #'
 #' @param components Named list with X, obs, var, obsm, obsp, etc.
@@ -11,19 +31,20 @@ create_sce_from_components <- function(components) {
     stop("SingleCellExperiment package required. Install with: BiocManager::install('SingleCellExperiment')")
   }
 
-  # Create assays list
-  assays_list <- list(counts = Matrix::t(components$X))  # Transpose to genes × cells
+  # Create assays list - transpose cells×genes to genes×cells
+  # Use fast transpose (O(1) with MatrixExtra, regular otherwise)
+  assays_list <- list(counts = .fast_transpose(components$X))
 
   # Add layers as additional assays
   if (length(components$layers) > 0) {
     for (layer_name in names(components$layers)) {
-      assays_list[[layer_name]] <- Matrix::t(components$layers[[layer_name]])
+      assays_list[[layer_name]] <- .fast_transpose(components$layers[[layer_name]])
     }
   }
 
   # Add raw counts if present
   if (!is.null(components$raw)) {
-    assays_list$raw_counts <- Matrix::t(components$raw$X)
+    assays_list$raw_counts <- .fast_transpose(components$raw$X)
   }
 
   # Create SCE object
