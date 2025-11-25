@@ -33,16 +33,12 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   # =========================================================================
   # 2. obs - Cell IDs (barcodes) + metadata
   # =========================================================================
-  barcodes_file <- ifelse(compress, "barcodes.tsv.gz", "barcodes.tsv")
+  # Always gzip barcodes - small file, fast compression
+  barcodes_file <- "barcodes.tsv.gz"
   barcodes_df <- data.frame(barcode = rownames(components$X))
-  if (compress) {
-    con <- gzfile(file.path(folder_path, barcodes_file), "wb")
-    write.table(barcodes_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-    close(con)
-  } else {
-    write.table(barcodes_df, file.path(folder_path, barcodes_file),
-               sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-  }
+  con <- gzfile(file.path(folder_path, barcodes_file), "wb")
+  write.table(barcodes_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  close(con)
   saved_files$barcodes <- barcodes_file
 
   # Save cell metadata as Parquet
@@ -53,20 +49,16 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   # =========================================================================
   # 3. var - Gene IDs (features) + metadata
   # =========================================================================
-  features_file <- ifelse(compress, "features.tsv.gz", "features.tsv")
+  # Always gzip features - small file, fast compression
+  features_file <- "features.tsv.gz"
   features_df <- data.frame(
     gene_id = colnames(components$X),
     gene_name = colnames(components$X),
     feature_type = "Gene Expression"
   )
-  if (compress) {
-    con <- gzfile(file.path(folder_path, features_file), "wb")
-    write.table(features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-    close(con)
-  } else {
-    write.table(features_df, file.path(folder_path, features_file),
-               sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-  }
+  con <- gzfile(file.path(folder_path, features_file), "wb")
+  write.table(features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+  close(con)
   saved_files$features <- features_file
 
   # Save gene metadata as Parquet
@@ -175,21 +167,16 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
       if (compute_hashes) hashes$raw_var <- compute_hash(components$raw$var)
     }
 
-    # Save raw gene IDs
-    raw_features_file <- ifelse(compress, "features.tsv.gz", "features.tsv")
+    # Save raw gene IDs (always gzip - small file, fast compression)
+    raw_features_file <- "features.tsv.gz"
     raw_features_df <- data.frame(
       gene_id = colnames(components$raw$X),
       gene_name = colnames(components$raw$X),
       feature_type = "Gene Expression"
     )
-    if (compress) {
-      con <- gzfile(file.path(raw_dir, raw_features_file), "wb")
-      write.table(raw_features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-      close(con)
-    } else {
-      write.table(raw_features_df, file.path(raw_dir, raw_features_file),
-                 sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-    }
+    con <- gzfile(file.path(raw_dir, raw_features_file), "wb")
+    write.table(raw_features_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    close(con)
     saved_files$raw_features <- file.path("raw", raw_features_file)
   }
 
@@ -291,17 +278,12 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
   # =========================================================================
   check_and_update(components$obs, "obs", function() {
     save_parquet(components$obs, file.path(folder_path, "obs.parquet"))
-    # Also update barcodes
-    barcodes_file <- ifelse(compress, "barcodes.tsv.gz", "barcodes.tsv")
+    # Also update barcodes (always gzip - small file)
+    barcodes_file <- "barcodes.tsv.gz"
     barcodes_df <- data.frame(barcode = rownames(components$X))
-    if (compress) {
-      con <- gzfile(file.path(folder_path, barcodes_file), "wb")
-      write.table(barcodes_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-      close(con)
-    } else {
-      write.table(barcodes_df, file.path(folder_path, barcodes_file),
-                 sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
-    }
+    con <- gzfile(file.path(folder_path, barcodes_file), "wb")
+    write.table(barcodes_df, con, sep = "\t", row.names = FALSE, col.names = FALSE, quote = FALSE)
+    close(con)
   })
 
   # =========================================================================

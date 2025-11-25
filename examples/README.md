@@ -108,3 +108,25 @@ seurat$new_annotation <- values
 
 scio_write(seurat, "data.scio", update = TRUE)  # Only rewrites changed parts
 ```
+
+## Compression Options
+
+Control MTX file compression for large datasets:
+
+```python
+# Python: Disable compression for faster writes
+scio.write(adata, "data.scio", compress=False)  # ~3-5x faster, larger files
+
+# Default: compressed
+scio.write(adata, "data.scio")  # compress=True by default
+```
+
+```r
+# R: Disable compression for faster writes
+scio_write(seurat, "data.scio", compress = FALSE)  # ~3-5x faster, larger files
+
+# Default: compressed
+scio_write(seurat, "data.scio")  # compress = TRUE by default
+```
+
+**Note:** The `compress` parameter only affects MTX files (matrices). TSV files (barcodes, features) are always gzipped regardless of this setting.

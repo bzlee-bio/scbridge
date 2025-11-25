@@ -108,7 +108,7 @@ print(adata)
 
 ### Python
 
-#### `scio.write(adata, path, overwrite=False, update=False)`
+#### `scio.write(adata, path, overwrite=False, update=False, compress=True)`
 Save AnnData to .scio folder.
 
 **Parameters:**
@@ -116,6 +116,7 @@ Save AnnData to .scio folder.
 - `path` (str): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 - `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
+- `compress` (bool): Whether to gzip compress MTX matrix files (default: True). Compression reduces file size by ~3-5x but is slower to write. TSV files are always gzipped (small files, fast compression).
 
 **Example:**
 ```python
@@ -125,6 +126,9 @@ scio.write(adata, "data.scio", overwrite=True)
 
 # Incremental update (only writes changed components)
 scio.write(adata, "data.scio", update=True)
+
+# Disable MTX compression for faster writes (larger files)
+scio.write(adata, "data.scio", compress=False)
 ```
 
 #### `scio.read(path)`
@@ -143,7 +147,7 @@ adata = scio.read("data.scio")
 
 ### R
 
-#### `scio_write(object, path, overwrite = FALSE, update = FALSE)`
+#### `scio_write(object, path, overwrite = FALSE, update = FALSE, compress = TRUE)`
 Save Seurat or SingleCellExperiment to .scio file.
 
 **Parameters:**
@@ -151,6 +155,7 @@ Save Seurat or SingleCellExperiment to .scio file.
 - `path` (character): Output .scio file path
 - `overwrite` (logical): Whether to overwrite existing file
 - `update` (logical): Whether to perform incremental update (default: FALSE). Only changed components will be rewritten.
+- `compress` (logical): Whether to gzip compress MTX matrix files (default: TRUE). Compression reduces file size by ~3-5x but is slower to write. TSV files are always gzipped.
 
 **Example:**
 ```R
@@ -159,6 +164,9 @@ scio_write(sce, "data.scio", overwrite = TRUE)
 
 # Incremental update (only writes changed components)
 scio_write(seurat, "data.scio", update = TRUE)
+
+# Disable MTX compression for faster writes (larger files)
+scio_write(seurat, "data.scio", compress = FALSE)
 ```
 
 #### `scio_read(path, output = c("Seurat", "SCE"))`
@@ -200,34 +208,50 @@ scio uses a `.scio` folder (directory) with a standardized structure:
 
 ```
 data.scio/
-├── manifest.json           # Metadata
-├── matrix.mtx              # Main expression (sparse)
-├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
-├── features.tsv[.gz]       # Gene IDs (optionally gzipped)
+├── manifest.json           # Metadata and file listing
+├── matrix.mtx[.gz]         # Main expression (sparse, optionally gzipped)
+├── barcodes.tsv.gz         # Cell IDs (always gzipped)
+├── features.tsv.gz         # Gene IDs (always gzipped)
 ├── obs.parquet             # Cell metadata
 ├── var.parquet             # Gene metadata
 ├── obsm/                   # Cell embeddings
 │   ├── X_pca.parquet
 │   └── X_umap.parquet
 ├── obsp/                   # Cell-cell graphs
-│   ├── distances.mtx
-│   └── connectivities.mtx
+│   ├── distances.mtx[.gz]
+│   └── connectivities.mtx[.gz]
 ├── varm/                   # Gene embeddings (if any)
 ├── varp/                   # Gene-gene graphs (if any)
 ├── layers/                 # Additional matrices (if any)
+│   └── counts.mtx[.gz]
 ├── raw/                    # Raw counts (if any)
-│   ├── matrix.mtx
-│   ├── features.tsv[.gz]   # Optionally gzipped
+│   ├── matrix.mtx[.gz]
+│   ├── features.tsv.gz
 │   └── var.parquet
 └── uns.json                # Unstructured metadata
 ```
 
-**Note:** Files with `[.gz]` may be gzipped depending on the `compress` parameter used during save.
+### Compression
+
+The `compress` parameter controls **MTX file compression only**:
+
+| File Type | compress=TRUE | compress=FALSE |
+|-----------|---------------|----------------|
+| MTX (matrix, graphs, layers) | `.mtx.gz` (smaller, slower) | `.mtx` (larger, faster) |
+| TSV (barcodes, features) | `.tsv.gz` (always) | `.tsv.gz` (always) |
+| Parquet (metadata, embeddings) | Built-in compression | Built-in compression |
+| JSON (uns) | No compression | No compression |
+
+**When to use `compress=FALSE`:**
+- Large datasets where write speed is critical
+- Temporary files that will be deleted soon
+- When disk space is not a concern
 
 **Formats used:**
 - **MTX** - Sparse matrices (expression, graphs)
-- **Parquet** - Tabular data (metadata, embeddings)
+- **Parquet** - Tabular data (metadata, embeddings) - has built-in compression
 - **JSON** - Unstructured metadata
+- **TSV.gz** - Simple text lists (barcodes, features) - always gzipped
 
 **Benefits of folder format:**
 - ✅ No extraction needed - instant access

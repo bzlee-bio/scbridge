@@ -75,8 +75,8 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     # 2. obs - Cell metadata (barcodes + metadata)
     # =========================================================================
-    # Save cell IDs as barcodes
-    barcodes_file = "barcodes.tsv.gz" if compress else "barcodes.tsv"
+    # Save cell IDs as barcodes (always gzip - small file, fast compression)
+    barcodes_file = "barcodes.tsv.gz"
     barcodes_df = pd.DataFrame(index=adata.obs_names)
     save_tsv_gz(barcodes_df, folder_path / barcodes_file, header=False)
     saved_files['barcodes'] = barcodes_file
@@ -90,8 +90,8 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     # 3. var - Gene metadata (features + metadata)
     # =========================================================================
-    # Save gene IDs as features
-    features_file = "features.tsv.gz" if compress else "features.tsv"
+    # Save gene IDs as features (always gzip - small file, fast compression)
+    features_file = "features.tsv.gz"
     features_df = pd.DataFrame({
         'gene_id': adata.var_names,
         'gene_name': adata.var_names,
@@ -102,7 +102,7 @@ def save_to_folder(adata: ad.AnnData,
         sep='\t',
         header=False,
         index=False,
-        compression='gzip' if compress else None
+        compression='gzip'
     )
     saved_files['features'] = features_file
 
@@ -232,8 +232,8 @@ def save_to_folder(adata: ad.AnnData,
             if compute_hashes:
                 hashes['raw_var'] = compute_hash(adata.raw.var)
 
-        # Save raw gene IDs
-        raw_features_file = "features.tsv.gz" if compress else "features.tsv"
+        # Save raw gene IDs (always gzip - small file, fast compression)
+        raw_features_file = "features.tsv.gz"
         raw_features_df = pd.DataFrame({
             'gene_id': adata.raw.var_names,
             'gene_name': adata.raw.var_names,
@@ -244,7 +244,7 @@ def save_to_folder(adata: ad.AnnData,
             sep='\t',
             header=False,
             index=False,
-            compression='gzip' if compress else None
+            compression='gzip'
         )
         saved_files['raw_features'] = f"raw/{raw_features_file}"
 
@@ -371,8 +371,8 @@ def update_folder(adata: ad.AnnData,
     # =========================================================================
     def save_obs():
         save_parquet(adata.obs, folder_path / "obs.parquet")
-        # Also update barcodes
-        barcodes_file = "barcodes.tsv.gz" if compress else "barcodes.tsv"
+        # Also update barcodes (always gzip - small file)
+        barcodes_file = "barcodes.tsv.gz"
         barcodes_df = pd.DataFrame(index=adata.obs_names)
         save_tsv_gz(barcodes_df, folder_path / barcodes_file, header=False)
     check_and_update(adata.obs, 'obs', save_obs)

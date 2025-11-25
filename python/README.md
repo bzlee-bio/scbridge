@@ -78,7 +78,7 @@ Save AnnData object to .scio folder.
 - `path` (str or Path): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 - `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
-- `compress` (bool): Whether to compress MTX files (default: True)
+- `compress` (bool): Whether to gzip compress MTX matrix files (default: True). Compression reduces file size by ~3-5x but is slower to write. TSV files are always gzipped.
 
 **Example:**
 ```python
@@ -87,6 +87,9 @@ scio.write(adata, "data.scio", overwrite=True)
 
 # Incremental update (only writes changed components)
 scio.write(adata, "data.scio", update=True)
+
+# Disable MTX compression for faster writes (larger files)
+scio.write(adata, "data.scio", compress=False)
 ```
 
 ### read()
@@ -115,9 +118,9 @@ The .scio folder structure:
 ```
 data.scio/
 ├── manifest.json           # Metadata about saved components
-├── matrix.mtx              # X (expression matrix, genes × cells)
-├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
-├── features.tsv[.gz]       # Gene IDs (optionally gzipped)
+├── matrix.mtx[.gz]         # X (expression matrix, optionally gzipped)
+├── barcodes.tsv.gz         # Cell IDs (always gzipped)
+├── features.tsv.gz         # Gene IDs (always gzipped)
 ├── obs.parquet             # Cell metadata
 ├── var.parquet             # Gene metadata
 ├── obsm/                   # Cell embeddings
@@ -125,18 +128,32 @@ data.scio/
 │   └── X_umap.parquet
 ├── varm/                   # Gene embeddings (if any)
 ├── obsp/                   # Cell-cell graphs
-│   ├── distances.mtx
-│   └── connectivities.mtx
+│   ├── distances.mtx[.gz]
+│   └── connectivities.mtx[.gz]
 ├── varp/                   # Gene-gene graphs (if any)
 ├── layers/                 # Additional matrices (if any)
 ├── raw/                    # Raw data (if present)
-│   ├── matrix.mtx
-│   ├── features.tsv[.gz]   # Optionally gzipped
+│   ├── matrix.mtx[.gz]
+│   ├── features.tsv.gz
 │   └── var.parquet
 └── uns.json                # Unstructured metadata
 ```
 
-**Note:** Files with `[.gz]` may be gzipped depending on the `compress` parameter used during save.
+### Compression
+
+The `compress` parameter controls **MTX file compression only**:
+
+| File Type | compress=True | compress=False |
+|-----------|---------------|----------------|
+| MTX (matrix, graphs, layers) | `.mtx.gz` (smaller, slower) | `.mtx` (larger, faster) |
+| TSV (barcodes, features) | `.tsv.gz` (always) | `.tsv.gz` (always) |
+| Parquet (metadata, embeddings) | Built-in compression | Built-in compression |
+| JSON (uns) | No compression | No compression |
+
+**When to use `compress=False`:**
+- Large datasets where write speed is critical
+- Temporary files that will be deleted soon
+- When disk space is not a concern
 
 ## Cross-Platform Usage
 
