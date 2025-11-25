@@ -21,16 +21,16 @@ pip install -e .
 
 ```python
 import anndata as ad
-import scio as sb
+import scio
 
 # Load your data
 adata = ad.read_h5ad("data.h5ad")
 
 # Save to .scio format (works with R!)
-sb.write(adata, "data.scio")
+scio.write(adata, "data.scio")
 
 # Load back
-adata = sb.read("data.scio")
+adata = scio.read("data.scio")
 ```
 
 ## Features
@@ -46,6 +46,11 @@ adata = sb.read("data.scio")
   - layers (additional matrices)
   - raw (raw counts)
   - uns (unstructured metadata)
+
+- **Incremental updates**: Hash-based change detection
+  - Only rewrites modified components
+  - Dramatically faster for iterative workflows
+  - Use `update=True` parameter
 
 - **Cross-platform compatibility**: Works seamlessly with R
   - Load in R as Seurat or SingleCellExperiment objects
@@ -63,7 +68,7 @@ adata = sb.read("data.scio")
 ### write()
 
 ```python
-sb.write(adata, path, overwrite=False, compress=True)
+scio.write(adata, path, overwrite=False, update=False, compress=True)
 ```
 
 Save AnnData object to .scio folder.
@@ -72,18 +77,22 @@ Save AnnData object to .scio folder.
 - `adata` (AnnData): AnnData object to save
 - `path` (str or Path): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
+- `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
 - `compress` (bool): Whether to compress MTX files (default: True)
 
 **Example:**
 ```python
-sb.write(adata, "data.scio")
-sb.write(adata, "data.scio", overwrite=True)
+scio.write(adata, "data.scio")
+scio.write(adata, "data.scio", overwrite=True)
+
+# Incremental update (only writes changed components)
+scio.write(adata, "data.scio", update=True)
 ```
 
 ### read()
 
 ```python
-adata = sb.read(path)
+adata = scio.read(path)
 ```
 
 Load AnnData object from .scio folder (or legacy tar archive).
@@ -96,7 +105,7 @@ Load AnnData object from .scio folder (or legacy tar archive).
 
 **Example:**
 ```python
-adata = sb.read("data.scio")
+adata = scio.read("data.scio")
 ```
 
 ## File Format
@@ -136,34 +145,34 @@ data.scio/
 ```python
 # Python: Save
 import anndata as ad
-import scio as sb
+import scio
 
 adata = ad.read_h5ad("data.h5ad")
-sb.write(adata, "data.scio")
+scio.write(adata, "data.scio")
 ```
 
 ```r
 # R: Load as Seurat
-library(scBridge)
+library(scio)
 
-seurat_obj <- read("data.scio", output = "Seurat")
+seurat_obj <- scio_read("data.scio", output = "Seurat")
 ```
 
 ### R to Python
 
 ```r
 # R: Save from Seurat
-library(scBridge)
+library(scio)
 library(Seurat)
 
-write(seurat_obj, "data.scio")
+scio_write(seurat_obj, "data.scio")
 ```
 
 ```python
 # Python: Load
-import scio as sb
+import scio
 
-adata = sb.read("data.scio")
+adata = scio.read("data.scio")
 ```
 
 ## Requirements

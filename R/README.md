@@ -1,4 +1,4 @@
-# scBridge - R Package
+# scio - R Package
 
 Cross-platform single-cell RNA-seq data storage for R (Seurat/SingleCellExperiment) and Python (AnnData).
 
@@ -10,8 +10,8 @@ Cross-platform single-cell RNA-seq data storage for R (Seurat/SingleCellExperime
 # Install devtools if needed
 install.packages("devtools")
 
-# Install scBridge from GitHub
-devtools::install_github("bzlee-bio/scbridge", subdir = "R")
+# Install scio from GitHub
+devtools::install_github("bzlee-bio/scio", subdir = "R")
 ```
 
 ### Local Development
@@ -24,17 +24,17 @@ devtools::install(".")
 ## Quick Start
 
 ```r
-library(scBridge)
+library(scio)
 library(Seurat)
 
-# Save Seurat object to .scb format (works with Python!)
-write(seurat_obj, "data.scb")
+# Save Seurat object to .scio format (works with Python!)
+scio_write(seurat_obj, "data.scio")
 
 # Load back as Seurat
-seurat_obj <- read("data.scb", output = "Seurat")
+seurat_obj <- scio_read("data.scio", output = "Seurat")
 
 # Load as SingleCellExperiment
-sce_obj <- read("data.scb", output = "SCE")
+sce_obj <- scio_read("data.scio", output = "SCE")
 ```
 
 ## Features
@@ -50,6 +50,11 @@ sce_obj <- read("data.scb", output = "SCE")
   - Raw counts
   - Unstructured metadata
 
+- **Incremental updates**: Hash-based change detection
+  - Only rewrites modified components
+  - Dramatically faster for iterative workflows
+  - Use `update = TRUE` parameter
+
 - **Cross-platform compatibility**: Works seamlessly with Python
   - Load in Python as AnnData objects
   - See `../python/README.md` for Python usage
@@ -63,43 +68,47 @@ sce_obj <- read("data.scb", output = "SCE")
 
 ## API Reference
 
-### write()
+### scio_write()
 
 ```r
-write(object, path, overwrite = FALSE, compress = TRUE)
+scio_write(object, path, overwrite = FALSE, update = FALSE, compress = TRUE)
 ```
 
-Save Seurat or SingleCellExperiment object to .scb folder.
+Save Seurat or SingleCellExperiment object to .scio folder.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
-- `path` (character): Output .scb folder path
+- `path` (character): Output .scio folder path
 - `overwrite` (logical): Whether to overwrite existing folder (default: FALSE)
+- `update` (logical): Whether to perform incremental update (default: FALSE). Only changed components will be rewritten.
 - `compress` (logical): Whether to compress MTX files (default: TRUE)
 
 **Examples:**
 ```r
 library(Seurat)
-library(scBridge)
+library(scio)
 
 # Save Seurat object
-write(seurat_obj, "data.scb")
+scio_write(seurat_obj, "data.scio")
 
 # Overwrite existing file
-write(seurat_obj, "data.scb", overwrite = TRUE)
+scio_write(seurat_obj, "data.scio", overwrite = TRUE)
+
+# Incremental update (only writes changed components)
+scio_write(seurat_obj, "data.scio", update = TRUE)
 ```
 
-### read()
+### scio_read()
 
 ```r
-seurat_obj <- read(path, output = "Seurat")
-sce_obj <- read(path, output = "SCE")
+seurat_obj <- scio_read(path, output = "Seurat")
+sce_obj <- scio_read(path, output = "SCE")
 ```
 
-Load data from .scb folder (or legacy tar archive) as Seurat or SingleCellExperiment.
+Load data from .scio folder (or legacy tar archive) as Seurat or SingleCellExperiment.
 
 **Parameters:**
-- `path` (character): Path to .scb folder (also supports legacy tar archives)
+- `path` (character): Path to .scio folder (also supports legacy tar archives)
 - `output` (character): Output format - "Seurat" or "SCE" (default: "Seurat")
 
 **Returns:**
@@ -108,18 +117,18 @@ Load data from .scb folder (or legacy tar archive) as Seurat or SingleCellExperi
 **Examples:**
 ```r
 # Load as Seurat
-seurat_obj <- read("data.scb", output = "Seurat")
+seurat_obj <- scio_read("data.scio", output = "Seurat")
 
 # Load as SingleCellExperiment
-sce_obj <- read("data.scb", output = "SCE")
+sce_obj <- scio_read("data.scio", output = "SCE")
 ```
 
 ## File Format
 
-The .scb folder structure:
+The .scio folder structure:
 
 ```
-data.scb/
+data.scio/
 ├── manifest.json           # Metadata about saved components
 ├── matrix.mtx              # Expression matrix (genes × cells)
 ├── barcodes.tsv[.gz]       # Cell IDs (optionally gzipped)
@@ -150,17 +159,17 @@ data.scb/
 
 ```r
 # R: Save from Seurat
-library(scBridge)
+library(scio)
 library(Seurat)
 
-write(seurat_obj, "data.scb")
+scio_write(seurat_obj, "data.scio")
 ```
 
 ```python
 # Python: Load as AnnData
-import scbridge as sb
+import scio
 
-adata = sb.read("data.scb")
+adata = scio.read("data.scio")
 ```
 
 ### Python to R
@@ -168,17 +177,17 @@ adata = sb.read("data.scb")
 ```python
 # Python: Save
 import anndata as ad
-import scbridge as sb
+import scio
 
 adata = ad.read_h5ad("data.h5ad")
-sb.write(adata, "data.scb")
+scio.write(adata, "data.scio")
 ```
 
 ```r
 # R: Load as Seurat
-library(scBridge)
+library(scio)
 
-seurat_obj <- read("data.scb", output = "Seurat")
+seurat_obj <- scio_read("data.scio", output = "Seurat")
 ```
 
 ## Requirements
@@ -187,6 +196,7 @@ seurat_obj <- read("data.scb", output = "Seurat")
 - Matrix
 - arrow
 - jsonlite
+- digest (for incremental updates)
 
 **Optional (for object conversion):**
 - Seurat (for Seurat objects)
@@ -196,7 +206,7 @@ Install dependencies:
 
 ```r
 # Required packages
-install.packages(c("Matrix", "arrow", "jsonlite"))
+install.packages(c("Matrix", "arrow", "jsonlite", "digest"))
 
 # Optional packages
 install.packages("Seurat")
@@ -219,10 +229,10 @@ components <- extract_components_from_seurat(seurat_obj)
 components$uns$custom_info <- "my_data"
 
 # Save components
-write_components(components, "data.scb")
+write_components(components, "data.scio")
 
 # Load components
-components <- read_components("data.scb")
+components <- read_components("data.scio")
 
 # Convert to Seurat
 seurat_obj <- create_seurat_from_components(components)

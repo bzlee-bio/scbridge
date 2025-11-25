@@ -15,6 +15,7 @@ scio provides a universal `.scio` folder format for storing single-cell RNA-seq 
 - ✅ **Cross-platform** - Python ↔ R seamless conversion
 - ✅ **Efficient** - Parquet + MTX format, ~3x smaller than CSV
 - ✅ **Fast** - Direct folder access, instant loading (no extraction needed)
+- ✅ **Incremental updates** - Hash-based change detection, only rewrites modified components
 - ✅ **Simple API** - Just `scio_write()` and `scio_read()` in R, `scio.write()` and `scio.read()` in Python
 - ✅ **Easy to inspect** - Standard folder structure, no tar unpacking required
 
@@ -41,7 +42,7 @@ devtools::install_github("bzlee-bio/scio", subdir = "R")
 **Python (save):**
 ```python
 import scanpy as sc
-import scio as sb
+import scio
 
 # Load and process data
 adata = sc.read_h5ad("pbmc.h5ad")
@@ -93,7 +94,7 @@ scio_write(seurat, "pbmc_data.scio")
 
 **Python (load):**
 ```python
-import scio as sb
+import scio
 
 # Load as AnnData
 adata = scio.read("pbmc_data.scio")
@@ -107,19 +108,23 @@ print(adata)
 
 ### Python
 
-#### `scio.write(adata, path, overwrite=False)`
+#### `scio.write(adata, path, overwrite=False, update=False)`
 Save AnnData to .scio folder.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
 - `path` (str): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
+- `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
 
 **Example:**
 ```python
-import scio as sb
+import scio
 scio.write(adata, "data.scio")
 scio.write(adata, "data.scio", overwrite=True)
+
+# Incremental update (only writes changed components)
+scio.write(adata, "data.scio", update=True)
 ```
 
 #### `scio.read(path)`
@@ -134,24 +139,26 @@ Load AnnData from .scio folder (or legacy tar archive).
 **Example:**
 ```python
 adata = scio.read("data.scio")
-# Also works with legacy tar archives:
-adata = scio.read("data.scio")
 ```
 
 ### R
 
-#### `scio_write(object, path, overwrite = FALSE)`
+#### `scio_write(object, path, overwrite = FALSE, update = FALSE)`
 Save Seurat or SingleCellExperiment to .scio file.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
 - `path` (character): Output .scio file path
 - `overwrite` (logical): Whether to overwrite existing file
+- `update` (logical): Whether to perform incremental update (default: FALSE). Only changed components will be rewritten.
 
 **Example:**
 ```R
 scio_write(seurat, "data.scio")
 scio_write(sce, "data.scio", overwrite = TRUE)
+
+# Incremental update (only writes changed components)
+scio_write(seurat, "data.scio", update = TRUE)
 ```
 
 #### `scio_read(path, output = c("Seurat", "SCE"))`
