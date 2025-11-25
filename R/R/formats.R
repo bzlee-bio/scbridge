@@ -1,6 +1,19 @@
 # Format handlers for MTX, Parquet, and JSON files
 # Part of the scio R package
 
+#' Compute hash of an R object for change detection
+#'
+#' Uses MD5 hash for fast computation. Used for incremental updates.
+#'
+#' @param obj R object to hash
+#' @return MD5 hash string
+compute_hash <- function(obj) {
+  if (!requireNamespace("digest", quietly = TRUE)) {
+    stop("digest package required. Install with: install.packages('digest')")
+  }
+  digest::digest(obj, algo = "md5")
+}
+
 #' Load sparse matrix from MTX format
 #'
 #' @param mtx_file Path to MTX file (can be gzipped)

@@ -9,24 +9,32 @@
 #' @param object Seurat or SingleCellExperiment object
 #' @param path Output .scio folder path (e.g., "data.scio")
 #' @param overwrite Whether to overwrite existing folder (default: FALSE)
+#' @param update Whether to perform incremental update using hash-based
+#'   change detection (default: FALSE). Only changed components will be
+#'   rewritten. If the existing file has no hash info, a full save is
+#'   performed with hashes computed for future updates.
 #' @param compress Whether to compress MTX files (default: TRUE)
 #'
 #' @examples
 #' \dontrun{
 #' library(scio)
 #'
-#' # Save Seurat object
+#' # Save Seurat object (full write)
 #' scio_write(seurat_obj, "data.scio")
 #'
-#' # Save SingleCellExperiment object
-#' scio_write(sce_obj, "data.scio")
+#' # Overwrite existing file
+#' scio_write(seurat_obj, "data.scio", overwrite = TRUE)
+#'
+#' # Incremental update (only changed components)
+#' scio_write(seurat_obj, "data.scio", update = TRUE)
 #' }
 #'
 #' @export
-scio_write <- function(object, path, overwrite = FALSE, compress = TRUE) {
-  # Check if folder exists
-  if (dir.exists(path) && !overwrite) {
-    stop(paste0("Folder already exists: ", path, "\nUse overwrite = TRUE to replace it."))
+scio_write <- function(object, path, overwrite = FALSE, update = FALSE, compress = TRUE) {
+  # Validate conflicting options
+
+if (overwrite && update) {
+    stop("Cannot use both overwrite = TRUE and update = TRUE. Choose one.")
   }
 
   # Detect object type and extract components
@@ -38,14 +46,44 @@ scio_write <- function(object, path, overwrite = FALSE, compress = TRUE) {
     stop("Unsupported object type. Must be Seurat or SingleCellExperiment.")
   }
 
+  # Handle update mode
+  if (update && dir.exists(path)) {
+    # Load existing manifest
+    manifest_path <- file.path(path, "manifest.json")
+    if (!file.exists(manifest_path)) {
+      stop(paste0("Invalid scio folder: manifest.json not found in ", path))
+    }
+
+    manifest <- load_json(manifest_path)
+
+    if (is.null(manifest$hashes)) {
+      # No hash info - do full save with hashes
+      message("  No hash info found in existing file. Doing full save with hash computation...")
+      save_to_folder(components, path, compress = compress, compute_hashes = TRUE)
+      message("  \u2713 Data saved with hashes to ", basename(path))
+    } else {
+      # Incremental update - only write changed components
+      message("  Performing incremental update...")
+      update_folder(components, path, manifest, compress = compress)
+      message("  \u2713 Incremental update complete for ", basename(path))
+    }
+
+    return(invisible(path))
+  }
+
+  # Check if folder exists for non-update mode
+  if (dir.exists(path) && !overwrite && !update) {
+    stop(paste0("Folder already exists: ", path, "\nUse overwrite = TRUE to replace it, or update = TRUE for incremental update."))
+  }
+
   # Remove existing folder if overwrite is TRUE
   if (dir.exists(path) && overwrite) {
     unlink(path, recursive = TRUE)
   }
 
-  # Save directly to .scio folder
+  # Save directly to .scio folder (always compute hashes for future updates)
   message("  Saving data to ", basename(path), "...")
-  save_to_folder(components, path, compress = compress)
+  save_to_folder(components, path, compress = compress, compute_hashes = TRUE)
   message("  \u2713 Data saved to ", basename(path))
 
   invisible(path)

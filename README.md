@@ -256,6 +256,22 @@ For 1M cells × 20K genes dataset:
 - jsonlite
 - Seurat (>= 4.0) or SingleCellExperiment (optional)
 
+## Backward Compatibility
+
+**Old `.scb` files from scBridge are fully compatible!**
+
+If you have existing `.scb` files created with the old `scBridge` package, they work seamlessly with `scio`:
+
+```r
+# Old .scb files work without any changes
+sce <- scio_read("old_data.scb", output = "SCE")
+
+# Or rename for clarity (optional)
+# mv old_data.scb old_data.scio
+```
+
+The internal format is identical - only the package name and function names changed.
+
 ## Examples
 
 See [examples/](examples/) directory for:
@@ -263,7 +279,7 @@ See [examples/](examples/) directory for:
 - R → Python workflows
 - Large dataset handling
 - Advanced usage
-<!-- 
+<!--
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md). -->
