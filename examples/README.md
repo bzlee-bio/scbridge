@@ -1,6 +1,8 @@
-# scio Examples
+# scio Examples (v0.1.2)
 
 This directory contains example scripts demonstrating how to use the scio package for cross-platform single-cell data exchange between Python and R.
+
+**v0.1.2**: Uses binary CSC format - 3.4x faster than H5AD in R, 14.2x faster than MTX.
 
 ## Files
 
@@ -109,24 +111,14 @@ seurat$new_annotation <- values
 scio_write(seurat, "data.scio", update = TRUE)  # Only rewrites changed parts
 ```
 
-## Compression Options
+## Performance (v0.1.2)
 
-Control MTX file compression for large datasets:
+Benchmark results for 100K cells × 36K genes:
 
-```python
-# Python: Disable compression for faster writes
-scio.write(adata, "data.scio", compress=False)  # ~3-5x faster, larger files
+| Format | R Read Time | vs scio |
+|--------|-------------|---------|
+| **scio v0.1.2** | **29.4s** | 1x |
+| H5AD (zellkonverter) | 99.3s | 3.4x slower |
+| MTX | 418.4s | 14.2x slower |
 
-# Default: compressed
-scio.write(adata, "data.scio")  # compress=True by default
-```
-
-```r
-# R: Disable compression for faster writes
-scio_write(seurat, "data.scio", compress = FALSE)  # ~3-5x faster, larger files
-
-# Default: compressed
-scio_write(seurat, "data.scio")  # compress = TRUE by default
-```
-
-**Note:** The `compress` parameter only affects MTX files (matrices). TSV files (barcodes, features) are always gzipped regardless of this setting.
+scio v0.1.2 uses binary CSC format with numpy arrays and MatrixExtra::t_shallow() for zero-copy transpose in R.

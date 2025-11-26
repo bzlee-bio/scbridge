@@ -1,6 +1,11 @@
-# scio - Python Package
+# scio - Python Package (v0.1.2)
 
 Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seurat/SingleCellExperiment).
+
+**v0.1.2 Highlights:**
+- Binary CSC format for fast sparse matrix I/O
+- 3.4x faster than H5AD in R, 14.2x faster than MTX
+- cells×genes orientation eliminates transpose on Python read
 
 ## Installation
 
@@ -47,6 +52,11 @@ adata = scio.read("data.scio")
   - raw (raw counts)
   - uns (unstructured metadata)
 
+- **Fast binary CSC format** (v0.1.2):
+  - Sparse matrices stored as numpy arrays (.npy files)
+  - cells×genes orientation - no transpose on Python read
+  - R read: 29.4s vs H5AD 99.3s vs MTX 418.4s
+
 - **Incremental updates**: Hash-based change detection
   - Only rewrites modified components
   - Dramatically faster for iterative workflows
@@ -57,8 +67,8 @@ adata = scio.read("data.scio")
   - See `../R/README.md` for R usage
 
 - **Efficient storage**:
-  - MTX format for sparse matrices (universal compatibility)
-  - Parquet format for metadata (preserves dtypes, 10-50x faster than CSV)
+  - Binary numpy arrays for sparse matrices
+  - Parquet format for metadata (preserves dtypes)
   - Direct folder access (no extraction needed)
 
 - **Large dataset support**: Optimized for 1M+ cells
@@ -68,17 +78,16 @@ adata = scio.read("data.scio")
 ### write()
 
 ```python
-scio.write(adata, path, overwrite=False, update=False, compress=True)
+scio.write(adata, path, overwrite=False, update=False)
 ```
 
-Save AnnData object to .scio folder.
+Save AnnData object to .scio folder using binary CSC format.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
 - `path` (str or Path): Output .scio folder path
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 - `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
-- `compress` (bool): Whether to gzip compress MTX matrix files (default: True). Compression reduces file size by ~3-5x but is slower to write. TSV files are always gzipped.
 
 **Example:**
 ```python
@@ -87,9 +96,6 @@ scio.write(adata, "data.scio", overwrite=True)
 
 # Incremental update (only writes changed components)
 scio.write(adata, "data.scio", update=True)
-
-# Disable MTX compression for faster writes (larger files)
-scio.write(adata, "data.scio", compress=False)
 ```
 
 ### read()
@@ -113,47 +119,39 @@ adata = scio.read("data.scio")
 
 ## File Format
 
-The .scio folder structure:
+scio v0.1.2 uses binary CSC (Compressed Sparse Column) format:
 
 ```
 data.scio/
-├── manifest.json           # Metadata about saved components
-├── matrix.mtx[.gz]         # X (expression matrix, optionally gzipped)
-├── barcodes.tsv.gz         # Cell IDs (always gzipped)
-├── features.tsv.gz         # Gene IDs (always gzipped)
+├── manifest.json           # Metadata (format version, orientation)
+├── matrix.data.npy         # CSC data array (binary numpy)
+├── matrix.indices.npy      # CSC indices array (binary numpy)
+├── matrix.indptr.npy       # CSC indptr array (binary numpy)
+├── shape.json              # Matrix dimensions and orientation
+├── barcodes.tsv.gz         # Cell IDs
+├── features.tsv.gz         # Gene IDs
 ├── obs.parquet             # Cell metadata
 ├── var.parquet             # Gene metadata
-├── obsm/                   # Cell embeddings
+├── obsm/                   # Cell embeddings (parquet)
 │   ├── X_pca.parquet
 │   └── X_umap.parquet
 ├── varm/                   # Gene embeddings (if any)
-├── obsp/                   # Cell-cell graphs
-│   ├── distances.mtx[.gz]
-│   └── connectivities.mtx[.gz]
+├── obsp/                   # Cell-cell graphs (binary CSC)
 ├── varp/                   # Gene-gene graphs (if any)
-├── layers/                 # Additional matrices (if any)
+├── layers/                 # Additional matrices (binary CSC)
 ├── raw/                    # Raw data (if present)
-│   ├── matrix.mtx[.gz]
-│   ├── features.tsv.gz
+│   ├── matrix.data.npy
+│   ├── matrix.indices.npy
+│   ├── matrix.indptr.npy
 │   └── var.parquet
 └── uns.json                # Unstructured metadata
 ```
 
-### Compression
+### v0.1.2 Format Features
 
-The `compress` parameter controls **MTX file compression only**:
-
-| File Type | compress=True | compress=False |
-|-----------|---------------|----------------|
-| MTX (matrix, graphs, layers) | `.mtx.gz` (smaller, slower) | `.mtx` (larger, faster) |
-| TSV (barcodes, features) | `.tsv.gz` (always) | `.tsv.gz` (always) |
-| Parquet (metadata, embeddings) | Built-in compression | Built-in compression |
-| JSON (uns) | No compression | No compression |
-
-**When to use `compress=False`:**
-- Large datasets where write speed is critical
-- Temporary files that will be deleted soon
-- When disk space is not a concern
+- **Binary CSC format**: Sparse matrices stored as numpy arrays
+- **cells×genes orientation**: No transpose needed on Python read
+- **Backward compatible**: Reads legacy MTX-based .scio files
 
 ## Cross-Platform Usage
 
