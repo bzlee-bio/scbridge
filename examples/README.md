@@ -1,8 +1,8 @@
-# scio Examples (v0.1.2)
+# scio Examples (v0.1.3)
 
 This directory contains example scripts demonstrating how to use the scio package for cross-platform single-cell data exchange between Python and R.
 
-**v0.1.2**: Uses binary CSC format - 3.4x faster than H5AD in R, 14.2x faster than MTX.
+**v0.1.3**: Uses binary CSR/CSC format - 3.4x faster than H5AD in R, 14.2x faster than MTX.
 
 ## Files
 
@@ -111,14 +111,14 @@ seurat$new_annotation <- values
 scio_write(seurat, "data.scio", update = TRUE)  # Only rewrites changed parts
 ```
 
-## Performance (v0.1.2)
+## Performance (v0.1.3)
 
 Benchmark results for 100K cells × 36K genes:
 
 | Format | R Read Time | vs scio |
 |--------|-------------|---------|
-| **scio v0.1.2** | **29.4s** | 1x |
+| **scio v0.1.3** | **29.4s** | 1x |
 | H5AD (zellkonverter) | 99.3s | 3.4x slower |
 | MTX | 418.4s | 14.2x slower |
 
-scio v0.1.2 uses binary CSC format with numpy arrays and MatrixExtra::t_shallow() for zero-copy transpose in R.
+scio v0.1.3 uses binary CSR/CSC format with numpy arrays and MatrixExtra::t_shallow() for zero-copy transpose in R.

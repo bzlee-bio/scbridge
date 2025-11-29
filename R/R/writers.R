@@ -198,7 +198,7 @@ save_to_folder <- function(components, folder_path, sparse_format = "csr", compu
   }
 
   manifest <- list(
-    format = "scio v0.1.2",
+    format = "scio v0.1.3",
     created_by = "scio::write",
     orientation = "cells_x_genes",
     dimensions = list(
@@ -420,7 +420,7 @@ update_folder <- function(components, folder_path, manifest, sparse_format = "cs
     I(x)  # I() prevents auto_unbox from converting single elements to scalars
   }
 
-  manifest$format <- "scio v0.1.2"
+  manifest$format <- "scio v0.1.3"
   manifest$orientation <- "cells_x_genes"
   manifest$hashes <- new_hashes
   manifest$files <- saved_files  # Update file paths

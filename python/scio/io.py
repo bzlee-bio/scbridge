@@ -33,7 +33,7 @@ def write(adata: ad.AnnData,
     - raw (raw counts)
     - uns (unstructured metadata)
 
-    Format inside .scio (v0.1.2):
+    Format inside .scio (v0.1.3):
     - Binary CSC/CSR (.npy) for sparse matrices (fast, cross-platform)
     - Parquet for DataFrames (preserves dtypes, efficient for large data)
     - JSON for metadata

@@ -301,8 +301,8 @@ def save_to_folder(adata: ad.AnnData,
     # Create manifest file
     # =========================================================================
     manifest = {
-        'format': 'scio v0.1.2',  # Binary CSC format with cells×genes orientation
-        'orientation': 'cells_x_genes',  # v0.1.2: no transpose on Python read, R transposes on read
+        'format': 'scio v0.1.3',  # Binary CSR/CSC format with cells×genes orientation
+        'orientation': 'cells_x_genes',  # v0.1.3: no transpose on Python read, R transposes on read
         'created_by': 'scio (Python)',
         'dimensions': {
             'n_obs': int(adata.n_obs),
@@ -545,7 +545,7 @@ def update_folder(adata: ad.AnnData,
     # =========================================================================
     # Update manifest
     # =========================================================================
-    manifest['format'] = 'scio v0.1.2'
+    manifest['format'] = 'scio v0.1.3'
     manifest['orientation'] = 'cells_x_genes'
     manifest['hashes'] = new_hashes
     manifest['files'] = saved_files

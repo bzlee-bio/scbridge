@@ -1,4 +1,4 @@
-# scBridge Format Specification v0.1.2
+# scBridge Format Specification v0.1.3
 
 ## Overview
 
@@ -315,9 +315,10 @@ Unstructured metadata.
 
 ## Version Compatibility
 
-**Version 0.1.2 (Beta):**
+**Version 0.1.3 (Beta):**
 - Folder-based format (no tar archive)
 - All 10 AnnData components supported
+- Configurable sparse format: CSR (default, fastest write) or CSC (faster R read)
 - Optional gzip compression for TSV files
 - Python 3.8+ and R 4.0+ compatible
 

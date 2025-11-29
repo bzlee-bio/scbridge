@@ -5,6 +5,23 @@ All notable changes to scio will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2025-01-29
+
+### Added
+- **Configurable sparse format**: New `sparse_format` parameter for write functions
+  - CSR (default): Fastest write from Python (scanpy outputs CSR)
+  - CSC: Faster R read performance
+  - Readers auto-detect format from `shape.json` metadata
+
+### Changed
+- Default sparse format is now CSR (was CSC in v0.1.2)
+- Python `scio.write()` accepts `sparse_format='csr'` or `sparse_format='csc'`
+- R `scio_write()` accepts `sparse_format = "csr"` or `sparse_format = "csc"`
+
+### API Changes
+- Python: `scio.write(adata, path, sparse_format='csr', overwrite=False, update=False)`
+- R: `scio_write(object, path, sparse_format = "csr", overwrite = FALSE, update = FALSE)`
+
 ## [0.1.2] - 2025-01-25
 
 ### Added
