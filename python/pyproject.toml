@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scio"
-version = "0.1.2"
+version = "0.1.3"
 description = "Cross-platform single-cell RNA-seq data storage for Python (AnnData) and R (Seurat/SCE)"
 readme = "README.md"
 requires-python = ">=3.8"

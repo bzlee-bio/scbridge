@@ -1,7 +1,7 @@
 Package: scio
 Type: Package
 Title: Single-Cell Data Input/Output for R and Python
-Version: 0.1.2
+Version: 0.1.3
 Authors@R: c(
     person("scio", "Contributors", role = c("aut", "cre"),
            email = "noreply@example.com")
