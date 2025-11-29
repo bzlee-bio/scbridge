@@ -129,9 +129,10 @@ save_json <- function(data, file_path, pretty = TRUE) {
 }
 
 
-#' Load sparse matrix from binary CSC format (v2.x)
+#' Load sparse matrix from binary format (CSC or CSR)
 #'
-#' This loads the binary CSC format written by Python (v2.0+).
+#' This loads the binary format written by Python (v2.0+).
+#' Supports both CSC and CSR formats based on metadata.
 #' Files: {base_path}.data.npy, {base_path}.indices.npy, {base_path}.indptr.npy, {base_path}.shape.json
 #'
 #' Uses reticulate+numpy for reliable large array loading. Falls back to RcppCNPy if reticulate
@@ -148,6 +149,8 @@ load_sparse_binary <- function(base_path, transpose = FALSE) {
     stop(paste("Shape file not found:", shape_file))
   }
   shape_meta <- load_json(shape_file)
+  stored_format <- shape_meta$format
+  if (is.null(stored_format)) stored_format <- "csc_binary"  # Default for legacy
 
   # Try reticulate+numpy first (most reliable for large arrays)
   if (requireNamespace("reticulate", quietly = TRUE)) {
@@ -179,14 +182,29 @@ load_sparse_binary <- function(base_path, transpose = FALSE) {
     indptr <- RcppCNPy::npyLoad(paste0(base_path, ".indptr.npy"))
   }
 
-  # Reconstruct dgCMatrix (CSC format)
-  # Note: R uses 0-based indices internally for dgCMatrix, same as Python
-  mat <- new("dgCMatrix",
-    x = as.numeric(data),
-    i = as.integer(indices),
-    p = as.integer(indptr),
-    Dim = as.integer(shape_meta$shape)
-  )
+  # Reconstruct matrix based on stored format
+  if (stored_format == "csr_binary") {
+    # CSR format: CSR of shape (M, N) is equivalent to CSC of shape (N, M) transposed
+    # So we load as CSC with transposed shape, then transpose to get original shape
+    # This avoids expensive dgRMatrix -> dgCMatrix conversion
+    mat <- new("dgCMatrix",
+      x = as.numeric(data),
+      i = as.integer(indices),
+      p = as.integer(indptr),
+      Dim = as.integer(rev(shape_meta$shape))  # Swap dimensions
+    )
+    # Transpose to get original shape - uses Matrix::t which returns dgCMatrix
+    mat <- Matrix::t(mat)
+  } else {
+    # CSC format (default): construct dgCMatrix directly
+    # dgCMatrix: i = row indices, p = column pointers
+    mat <- new("dgCMatrix",
+      x = as.numeric(data),
+      i = as.integer(indices),
+      p = as.integer(indptr),
+      Dim = as.integer(shape_meta$shape)
+    )
+  }
 
   if (transpose) {
     # Try to use MatrixExtra::t_shallow() for O(1) transpose if available
@@ -203,36 +221,54 @@ load_sparse_binary <- function(base_path, transpose = FALSE) {
 }
 
 
-#' Save sparse matrix to binary CSC format
+#' Save sparse matrix to binary format (CSR or CSC)
 #'
-#' Saves a sparse matrix in binary CSC format for fast loading.
+#' Saves a sparse matrix in binary format for fast loading.
 #' Creates: {base_path}.data.npy, {base_path}.indices.npy, {base_path}.indptr.npy, {base_path}.shape.json
 #'
-#' @param matrix Sparse matrix to save (will be converted to CSC if needed)
+#' @param matrix Sparse matrix to save
 #' @param base_path Base output path (without extension)
+#' @param sparse_format Format for sparse matrix: "csr" (default) or "csc"
 #' @param orientation Data orientation metadata (e.g., "cells_x_genes" or "genes_x_cells")
 #' @return Base path to saved files
-save_sparse_binary <- function(matrix, base_path, orientation = NULL) {
-  if (!requireNamespace("RcppCNPy", quietly = TRUE)) {
-    stop("RcppCNPy package required for binary format. Install with: install.packages('RcppCNPy')")
-  }
+#' @importFrom RcppCNPy npySave
+save_sparse_binary <- function(matrix, base_path, sparse_format = "csr", orientation = NULL) {
+  # Convert to target format
+  if (sparse_format == "csr") {
+    # Convert to dgRMatrix (CSR format)
+    if (!inherits(matrix, "dgRMatrix")) {
+      # dgRMatrix stores: j (column indices), p (row pointers), x (data)
+      matrix <- as(matrix, "RsparseMatrix")
+    }
 
-  # Convert to dgCMatrix (CSC format) if needed
-  if (!inherits(matrix, "dgCMatrix")) {
-    matrix <- as(matrix, "dgCMatrix")
-  }
+    # Save CSR components as binary numpy files
+    # CSR: j = column indices, p = row pointers
+    RcppCNPy::npySave(paste0(base_path, ".data.npy"), matrix@x)
+    RcppCNPy::npySave(paste0(base_path, ".indices.npy"), as.integer(matrix@j))
+    RcppCNPy::npySave(paste0(base_path, ".indptr.npy"), as.integer(matrix@p))
 
-  # Save CSC components as binary numpy files
-  RcppCNPy::npySave(paste0(base_path, ".data.npy"), matrix@x)
-  RcppCNPy::npySave(paste0(base_path, ".indices.npy"), matrix@i)
-  RcppCNPy::npySave(paste0(base_path, ".indptr.npy"), matrix@p)
+    format_name <- "csr_binary"
+  } else {
+    # Convert to dgCMatrix (CSC format) if needed
+    if (!inherits(matrix, "dgCMatrix")) {
+      matrix <- as(matrix, "dgCMatrix")
+    }
+
+    # Save CSC components as binary numpy files
+    # CSC: i = row indices, p = column pointers
+    RcppCNPy::npySave(paste0(base_path, ".data.npy"), matrix@x)
+    RcppCNPy::npySave(paste0(base_path, ".indices.npy"), as.integer(matrix@i))
+    RcppCNPy::npySave(paste0(base_path, ".indptr.npy"), as.integer(matrix@p))
+
+    format_name <- "csc_binary"
+  }
 
   # Save shape metadata
   shape_meta <- list(
     shape = matrix@Dim,
     dtype = "float64",
     nnz = length(matrix@x),
-    format = "csc_binary"
+    format = format_name
   )
 
   if (!is.null(orientation)) {

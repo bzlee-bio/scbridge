@@ -24,3 +24,4 @@ CONTRIBUTING.md
 
 test_data/
 tests/
+benchmark*

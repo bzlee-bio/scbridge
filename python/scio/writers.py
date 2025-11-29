@@ -17,24 +17,55 @@ from .formats import (
 )
 
 
+def _convert_to_format(matrix, target_format: str):
+    """
+    Convert sparse matrix to target format (CSR or CSC).
+
+    Parameters:
+    -----------
+    matrix : sparse matrix
+        Input sparse matrix
+    target_format : str
+        Target format: 'csr' or 'csc'
+
+    Returns:
+    --------
+    sparse matrix in target format
+    """
+    if not sp.issparse(matrix):
+        if target_format == 'csr':
+            return sp.csr_matrix(matrix)
+        else:
+            return sp.csc_matrix(matrix)
+
+    if target_format == 'csr':
+        if sp.isspmatrix_csr(matrix):
+            return matrix
+        return matrix.tocsr()
+    else:  # csc
+        if sp.isspmatrix_csc(matrix):
+            return matrix
+        return matrix.tocsc()
+
+
 def save_to_folder(adata: ad.AnnData,
                    folder_path: Path,
-                   compress: bool = True,
+                   sparse_format: str = 'csr',
                    compute_hashes: bool = True) -> Dict[str, Path]:
     """
     Save all AnnData components to a folder structure
 
-    This saves ALL 10 components of AnnData:
-    1. X - expression matrix (MTX)
+    This saves ALL 10 components of AnnData using binary CSC/CSR format (v0.1.3):
+    1. X - expression matrix (binary .npy)
     2. obs - cell metadata (Parquet)
     3. var - gene metadata (Parquet)
     4. obsm - cell embeddings (Parquet)
     5. varm - gene embeddings (Parquet)
-    6. obsp - cell-cell graphs (MTX)
-    7. varp - gene-gene graphs (MTX)
-    8. layers - additional matrices (MTX)
+    6. obsp - cell-cell graphs (binary .npy)
+    7. varp - gene-gene graphs (binary .npy)
+    8. layers - additional matrices (binary .npy)
     9. uns - unstructured metadata (JSON)
-    10. raw - raw data (MTX + Parquet)
+    10. raw - raw data (binary .npy + Parquet)
 
     Parameters:
     -----------
@@ -42,8 +73,8 @@ def save_to_folder(adata: ad.AnnData,
         AnnData object to save
     folder_path : Path
         Output folder path
-    compress : bool
-        Whether to compress MTX files (default: True)
+    sparse_format : str
+        Format for sparse matrices: 'csr' (default, fastest write) or 'csc' (faster R read)
     compute_hashes : bool
         Whether to compute and store MD5 hashes for incremental updates (default: True)
 
@@ -58,25 +89,16 @@ def save_to_folder(adata: ad.AnnData,
     hashes = {}  # Store hashes for incremental updates
 
     # =========================================================================
-    # 1. X - Expression matrix (cells × genes) - store as CSC directly
+    # 1. X - Expression matrix (cells × genes) - store in user-specified format
     # =========================================================================
     matrix_base = "matrix"
 
-    # v0.1.2: Store in cells×genes orientation (Python's native format)
-    # This eliminates expensive transpose operations on write
-    # R will transpose on read using O(1) MatrixExtra::t_shallow()
-    if sp.issparse(adata.X):
-        if sp.isspmatrix_csc(adata.X):
-            # Already CSC cells×genes - store directly
-            X_to_store = adata.X
-        elif sp.isspmatrix_csr(adata.X):
-            # CSR.T gives CSC (cells×genes transposed = genes×cells, but shape stays same)
-            # Actually we want cells×genes, so just convert CSR to CSC
-            X_to_store = adata.X.tocsc()
-        else:
-            X_to_store = sp.csc_matrix(adata.X)
-    else:
-        X_to_store = sp.csc_matrix(adata.X)
+    # v0.1.3: Convert to user-specified format (CSR default, CSC for faster R read)
+    X_to_store = _convert_to_format(adata.X, sparse_format)
+
+    # Ensure indices are sorted (required by R's sparse matrix classes)
+    if not X_to_store.has_sorted_indices:
+        X_to_store.sort_indices()
 
     save_sparse_parquet(X_to_store, folder_path / matrix_base, orientation='cells_x_genes')
     saved_files['X'] = matrix_base
@@ -86,10 +108,10 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     # 2. obs - Cell metadata (barcodes + metadata)
     # =========================================================================
-    # Save cell IDs as barcodes (always gzip - small file, fast compression)
-    barcodes_file = "barcodes.tsv.gz"
+    # Save cell IDs as barcodes (plain text - faster than gzip, R read.table handles both)
+    barcodes_file = "barcodes.tsv"
     barcodes_df = pd.DataFrame(index=adata.obs_names)
-    save_tsv_gz(barcodes_df, folder_path / barcodes_file, header=False)
+    barcodes_df.to_csv(folder_path / barcodes_file, sep='\t', header=False, index=True)
     saved_files['barcodes'] = barcodes_file
 
     # Save cell metadata as Parquet
@@ -101,8 +123,8 @@ def save_to_folder(adata: ad.AnnData,
     # =========================================================================
     # 3. var - Gene metadata (features + metadata)
     # =========================================================================
-    # Save gene IDs as features (always gzip - small file, fast compression)
-    features_file = "features.tsv.gz"
+    # Save gene IDs as features (plain text - faster than gzip, R read.table handles both)
+    features_file = "features.tsv"
     features_df = pd.DataFrame({
         'gene_id': adata.var_names,
         'gene_name': adata.var_names,
@@ -112,8 +134,7 @@ def save_to_folder(adata: ad.AnnData,
         folder_path / features_file,
         sep='\t',
         header=False,
-        index=False,
-        compression='gzip'
+        index=False
     )
     saved_files['features'] = features_file
 
@@ -205,17 +226,8 @@ def save_to_folder(adata: ad.AnnData,
         for key in adata.layers.keys():
             layer_base = key
 
-            # v0.1.2: Store in cells×genes orientation (no transpose)
-            layer = adata.layers[key]
-            if sp.issparse(layer):
-                if sp.isspmatrix_csc(layer):
-                    layer_to_store = layer
-                elif sp.isspmatrix_csr(layer):
-                    layer_to_store = layer.tocsc()
-                else:
-                    layer_to_store = sp.csc_matrix(layer)
-            else:
-                layer_to_store = sp.csc_matrix(layer)
+            # v0.1.3: Convert to user-specified format
+            layer_to_store = _convert_to_format(adata.layers[key], sparse_format)
 
             save_sparse_parquet(layer_to_store, layers_dir / layer_base, orientation='cells_x_genes')
             saved_files[f'layer_{key}'] = f"layers/{layer_base}"
@@ -229,19 +241,9 @@ def save_to_folder(adata: ad.AnnData,
         raw_dir = folder_path / "raw"
         raw_dir.mkdir(exist_ok=True)
 
-        # Save raw X matrix - v0.1.2: cells×genes orientation (no transpose)
+        # Save raw X matrix - v0.1.3: Convert to user-specified format
         raw_matrix_base = "matrix"
-
-        raw_X = adata.raw.X
-        if sp.issparse(raw_X):
-            if sp.isspmatrix_csc(raw_X):
-                raw_X_to_store = raw_X
-            elif sp.isspmatrix_csr(raw_X):
-                raw_X_to_store = raw_X.tocsc()
-            else:
-                raw_X_to_store = sp.csc_matrix(raw_X)
-        else:
-            raw_X_to_store = sp.csc_matrix(raw_X)
+        raw_X_to_store = _convert_to_format(adata.raw.X, sparse_format)
 
         save_sparse_parquet(raw_X_to_store, raw_dir / raw_matrix_base, orientation='cells_x_genes')
         saved_files['raw_X'] = f"raw/{raw_matrix_base}"
@@ -255,8 +257,8 @@ def save_to_folder(adata: ad.AnnData,
             if compute_hashes:
                 hashes['raw_var'] = compute_hash(adata.raw.var)
 
-        # Save raw gene IDs (always gzip - small file, fast compression)
-        raw_features_file = "features.tsv.gz"
+        # Save raw gene IDs (plain text - faster than gzip, R read.table handles both)
+        raw_features_file = "features.tsv"
         raw_features_df = pd.DataFrame({
             'gene_id': adata.raw.var_names,
             'gene_name': adata.raw.var_names,
@@ -266,8 +268,7 @@ def save_to_folder(adata: ad.AnnData,
             raw_dir / raw_features_file,
             sep='\t',
             header=False,
-            index=False,
-            compression='gzip'
+            index=False
         )
         saved_files['raw_features'] = f"raw/{raw_features_file}"
 
@@ -334,7 +335,7 @@ def save_to_folder(adata: ad.AnnData,
 def update_folder(adata: ad.AnnData,
                   folder_path: Path,
                   manifest: Dict,
-                  compress: bool = True) -> Dict[str, int]:
+                  sparse_format: str = 'csr') -> Dict[str, int]:
     """
     Update folder with only changed components (incremental update)
 
@@ -349,8 +350,8 @@ def update_folder(adata: ad.AnnData,
         Existing .scio folder path
     manifest : dict
         Existing manifest with hashes
-    compress : bool
-        Whether to compress files (default: True)
+    sparse_format : str
+        Format for sparse matrices: 'csr' (default, fastest write) or 'csc' (faster R read)
 
     Returns:
     --------
@@ -383,16 +384,8 @@ def update_folder(adata: ad.AnnData,
     matrix_base = "matrix"
     saved_files['X'] = matrix_base
     def save_x():
-        # v0.1.2: Store in cells×genes orientation (no transpose)
-        if sp.issparse(adata.X):
-            if sp.isspmatrix_csc(adata.X):
-                X_to_store = adata.X
-            elif sp.isspmatrix_csr(adata.X):
-                X_to_store = adata.X.tocsc()
-            else:
-                X_to_store = sp.csc_matrix(adata.X)
-        else:
-            X_to_store = sp.csc_matrix(adata.X)
+        # v0.1.3: Convert to user-specified format
+        X_to_store = _convert_to_format(adata.X, sparse_format)
         save_sparse_parquet(X_to_store, folder_path / matrix_base, orientation='cells_x_genes')
     check_and_update(adata.X, 'X', save_x)
 
@@ -401,10 +394,10 @@ def update_folder(adata: ad.AnnData,
     # =========================================================================
     def save_obs():
         save_parquet(adata.obs, folder_path / "obs.parquet")
-        # Also update barcodes (always gzip - small file)
-        barcodes_file = "barcodes.tsv.gz"
+        # Also update barcodes (plain text)
+        barcodes_file = "barcodes.tsv"
         barcodes_df = pd.DataFrame(index=adata.obs_names)
-        save_tsv_gz(barcodes_df, folder_path / barcodes_file, header=False)
+        barcodes_df.to_csv(folder_path / barcodes_file, sep='\t', header=False, index=True)
     check_and_update(adata.obs, 'obs', save_obs)
 
     # =========================================================================
@@ -504,17 +497,8 @@ def update_folder(adata: ad.AnnData,
             saved_files[hash_key] = f"layers/{layer_base}"
 
             def save_layer(k=key, lb=layer_base):
-                # v0.1.2: Store in cells×genes orientation (no transpose)
-                layer = adata.layers[k]
-                if sp.issparse(layer):
-                    if sp.isspmatrix_csc(layer):
-                        layer_to_store = layer
-                    elif sp.isspmatrix_csr(layer):
-                        layer_to_store = layer.tocsc()
-                    else:
-                        layer_to_store = sp.csc_matrix(layer)
-                else:
-                    layer_to_store = sp.csc_matrix(layer)
+                # v0.1.3: Convert to user-specified format
+                layer_to_store = _convert_to_format(adata.layers[k], sparse_format)
                 save_sparse_parquet(layer_to_store, layers_dir / lb, orientation='cells_x_genes')
             check_and_update(adata.layers[key], hash_key, save_layer)
 
@@ -528,17 +512,8 @@ def update_folder(adata: ad.AnnData,
         raw_matrix_base = "matrix"
         saved_files['raw_X'] = f"raw/{raw_matrix_base}"
         def save_raw_x():
-            # v0.1.2: Store in cells×genes orientation (no transpose)
-            raw_X = adata.raw.X
-            if sp.issparse(raw_X):
-                if sp.isspmatrix_csc(raw_X):
-                    raw_X_to_store = raw_X
-                elif sp.isspmatrix_csr(raw_X):
-                    raw_X_to_store = raw_X.tocsc()
-                else:
-                    raw_X_to_store = sp.csc_matrix(raw_X)
-            else:
-                raw_X_to_store = sp.csc_matrix(raw_X)
+            # v0.1.3: Convert to user-specified format
+            raw_X_to_store = _convert_to_format(adata.raw.X, sparse_format)
             save_sparse_parquet(raw_X_to_store, raw_dir / raw_matrix_base, orientation='cells_x_genes')
         check_and_update(adata.raw.X, 'raw_X', save_raw_x)
 

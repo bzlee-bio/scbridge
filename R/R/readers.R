@@ -139,7 +139,7 @@ load_from_folder <- function(folder_path) {
       file_key <- paste0("obsm_", key)
       file_path <- file.path(folder_path, manifest$files[[file_key]])
       emb_df <- load_parquet(file_path)
-      result$obsm[[key]] <- as.matrix(emb_df)
+      result$obsm[[key]] <- data.matrix(emb_df)
       rownames(result$obsm[[key]]) <- obs_names
     }
   }
@@ -153,7 +153,7 @@ load_from_folder <- function(folder_path) {
       file_key <- paste0("varm_", key)
       file_path <- file.path(folder_path, manifest$files[[file_key]])
       varm_df <- load_parquet(file_path)
-      result$varm[[key]] <- as.matrix(varm_df)
+      result$varm[[key]] <- data.matrix(varm_df)
       rownames(result$varm[[key]]) <- var_names
     }
   }

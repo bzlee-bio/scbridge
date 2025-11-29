@@ -286,21 +286,22 @@ def save_sparse_parquet(matrix: Union[np.ndarray, sp.spmatrix],
                         shape_file: Path = None,
                         orientation: str = None) -> Path:
     """
-    Save a sparse matrix in binary CSC format.
+    Save a sparse matrix in binary format (CSC or CSR).
 
-    This is the fastest format - directly saves CSC components as numpy binary files.
+    Supports both CSC and CSR formats to avoid expensive conversion.
+    This is the fastest format - directly saves sparse components as numpy binary files.
     Much faster than MTX and Parquet for large sparse matrices.
 
     Files created:
     - {path}.data.npy - non-zero values
-    - {path}.indices.npy - row indices
-    - {path}.indptr.npy - column pointers
-    - {path}.shape.json - metadata (shape, dtype, nnz, orientation)
+    - {path}.indices.npy - row/column indices
+    - {path}.indptr.npy - column/row pointers
+    - {path}.shape.json - metadata (shape, dtype, nnz, format, orientation)
 
     Parameters:
     -----------
     matrix : array-like
-        Matrix to save (will be converted to CSC if needed)
+        Matrix to save (CSC or CSR - saved directly without conversion)
     path : Path
         Base output file path (without extension)
     shape_file : Path, optional
@@ -315,16 +316,34 @@ def save_sparse_parquet(matrix: Union[np.ndarray, sp.spmatrix],
     """
     path = Path(path)
 
-    # Convert to CSC format for efficient storage
+    # Support both CSC and CSR formats to avoid expensive conversion
     if not sp.issparse(matrix):
         matrix = sp.csc_matrix(matrix)
-    elif not sp.isspmatrix_csc(matrix):
+        sparse_format = 'csc_binary'
+    elif sp.isspmatrix_csc(matrix):
+        sparse_format = 'csc_binary'
+    elif sp.isspmatrix_csr(matrix):
+        sparse_format = 'csr_binary'
+    else:
+        # Convert other formats (COO, etc.) to CSC
         matrix = matrix.tocsc()
+        sparse_format = 'csc_binary'
 
-    # Save CSC components as binary numpy files
-    np.save(str(path) + '.data.npy', matrix.data)
-    np.save(str(path) + '.indices.npy', matrix.indices)
-    np.save(str(path) + '.indptr.npy', matrix.indptr)
+    # Save sparse components as binary numpy files in parallel for faster I/O
+    import concurrent.futures
+
+    def _save_npy(filepath, arr):
+        np.save(filepath, arr)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(_save_npy, str(path) + '.data.npy', matrix.data),
+            executor.submit(_save_npy, str(path) + '.indices.npy', matrix.indices),
+            executor.submit(_save_npy, str(path) + '.indptr.npy', matrix.indptr),
+        ]
+        # Wait for all to complete
+        for f in futures:
+            f.result()
 
     # Save shape metadata
     if shape_file is None:
@@ -334,7 +353,7 @@ def save_sparse_parquet(matrix: Union[np.ndarray, sp.spmatrix],
         'shape': list(matrix.shape),
         'dtype': str(matrix.dtype),
         'nnz': matrix.nnz,
-        'format': 'csc_binary'
+        'format': sparse_format
     }
 
     # Add orientation metadata for v0.1.2+
@@ -383,21 +402,35 @@ def load_sparse_parquet(path: Path,
     dtype = np.dtype(shape_meta['dtype'])
     stored_format = shape_meta.get('format', 'csc_binary')
 
-    # Load components from binary files
-    data = np.load(str(path) + '.data.npy')
-    indices = np.load(str(path) + '.indices.npy')
-    indptr = np.load(str(path) + '.indptr.npy')
+    # Load components from binary files in parallel for faster I/O
+    import concurrent.futures
+
+    def _load_npy(filepath):
+        return np.load(filepath)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        data_future = executor.submit(_load_npy, str(path) + '.data.npy')
+        indices_future = executor.submit(_load_npy, str(path) + '.indices.npy')
+        indptr_future = executor.submit(_load_npy, str(path) + '.indptr.npy')
+
+        data = data_future.result()
+        indices = indices_future.result()
+        indptr = indptr_future.result()
 
     # Reconstruct matrix based on stored format
+    # Only convert dtype if necessary (avoid expensive copy for same dtype)
+    if data.dtype != dtype:
+        data = data.astype(dtype)
+
     if stored_format == 'csc_binary':
-        # New v2.0 CSC format
-        matrix = sp.csc_matrix((data.astype(dtype), indices, indptr), shape=shape)
+        # New v2.0 CSC format - use copy=False to avoid expensive validation
+        matrix = sp.csc_matrix((data, indices, indptr), shape=shape, copy=False)
         if transpose:
             # CSC.T gives CSR directly (zero-copy view) - this is the key optimization!
             matrix = matrix.T
     else:
         # Legacy CSR format (for backward compatibility)
-        matrix = sp.csr_matrix((data.astype(dtype), indices, indptr), shape=shape)
+        matrix = sp.csr_matrix((data, indices, indptr), shape=shape, copy=False)
         if transpose:
             # CSR.T gives CSC, need to convert back to CSR (slow)
             matrix = matrix.T.tocsr()

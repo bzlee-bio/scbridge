@@ -126,7 +126,9 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     # 2. Load cell IDs (obs_names)
     # =========================================================================
     barcodes_file = folder_path / manifest['files']['barcodes']
-    barcodes_df = load_tsv_gz(barcodes_file, header=False)
+    # Handle both .tsv and .tsv.gz formats
+    compression = 'gzip' if str(barcodes_file).endswith('.gz') else None
+    barcodes_df = pd.read_csv(barcodes_file, sep='\t', header=None, compression=compression)
     obs_names = barcodes_df.iloc[:, 0].values
 
     # =========================================================================

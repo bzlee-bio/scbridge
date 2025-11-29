@@ -13,7 +13,7 @@ scio provides a universal `.scio` folder format for storing single-cell RNA-seq 
 **Key Features:**
 - ✅ **Complete data preservation** - All 10 AnnData components (X, obs, var, obsm, varm, obsp, varp, layers, uns, raw)
 - ✅ **Cross-platform** - Python ↔ R seamless conversion
-- ✅ **Fast** - Binary CSC format, 3.4x faster than H5AD in R, 14.2x faster than MTX
+- ✅ **Fast** - Binary CSR/CSC format, 3.4x faster than H5AD in R, 14.2x faster than MTX
 - ✅ **Efficient** - Binary numpy arrays + Parquet format
 - ✅ **Incremental updates** - Hash-based change detection, only rewrites modified components
 - ✅ **Simple API** - Just `scio_write()` and `scio_read()` in R, `scio.write()` and `scio.read()` in Python
@@ -55,6 +55,9 @@ sc.tl.umap(adata)
 
 # Save to .scio (includes ALL components)
 scio.write(adata, "pbmc_data.scio")
+
+# Or use CSC format for faster R reading
+scio.write(adata, "pbmc_data.scio", sparse_format='csc')
 ```
 
 **R (load):**
@@ -90,6 +93,9 @@ seurat <- RunUMAP(seurat, dims = 1:30)
 
 # Save to .scio
 scio_write(seurat, "pbmc_data.scio")
+
+# Or use CSC format for faster R reading
+scio_write(seurat, "pbmc_data.scio", sparse_format = "csc")
 ```
 
 **Python (load):**
@@ -108,12 +114,13 @@ print(adata)
 
 ### Python
 
-#### `scio.write(adata, path, overwrite=False, update=False)`
-Save AnnData to .scio folder using binary CSC format.
+#### `scio.write(adata, path, sparse_format='csr', overwrite=False, update=False)`
+Save AnnData to .scio folder using binary sparse format.
 
 **Parameters:**
 - `adata` (AnnData): AnnData object to save
 - `path` (str): Output .scio folder path
+- `sparse_format` (str): Format for sparse matrices - `'csr'` (default, fastest write) or `'csc'` (faster R read)
 - `overwrite` (bool): Whether to overwrite existing folder (default: False)
 - `update` (bool): Whether to perform incremental update using hash-based change detection (default: False). Only changed components will be rewritten.
 
@@ -122,6 +129,9 @@ Save AnnData to .scio folder using binary CSC format.
 import scio
 scio.write(adata, "data.scio")
 scio.write(adata, "data.scio", overwrite=True)
+
+# Use CSC format for faster R reading
+scio.write(adata, "data.scio", sparse_format='csc')
 
 # Incremental update (only writes changed components)
 scio.write(adata, "data.scio", update=True)
@@ -143,12 +153,13 @@ adata = scio.read("data.scio")
 
 ### R
 
-#### `scio_write(object, path, overwrite = FALSE, update = FALSE)`
-Save Seurat or SingleCellExperiment to .scio folder using binary CSC format.
+#### `scio_write(object, path, sparse_format = "csr", overwrite = FALSE, update = FALSE)`
+Save Seurat or SingleCellExperiment to .scio folder using binary sparse format.
 
 **Parameters:**
 - `object`: Seurat or SingleCellExperiment object
 - `path` (character): Output .scio folder path
+- `sparse_format` (character): Format for sparse matrices - `"csr"` (default, fastest write) or `"csc"` (faster R read)
 - `overwrite` (logical): Whether to overwrite existing folder
 - `update` (logical): Whether to perform incremental update (default: FALSE). Only changed components will be rewritten.
 
@@ -156,6 +167,9 @@ Save Seurat or SingleCellExperiment to .scio folder using binary CSC format.
 ```R
 scio_write(seurat, "data.scio")
 scio_write(sce, "data.scio", overwrite = TRUE)
+
+# Use CSC format for faster R reading
+scio_write(seurat, "data.scio", sparse_format = "csc")
 
 # Incremental update (only writes changed components)
 scio_write(seurat, "data.scio", update = TRUE)
@@ -196,14 +210,14 @@ scio preserves **ALL** AnnData components:
 
 ## File Format
 
-scio v0.1.2 uses a `.scio` folder with binary CSC (Compressed Sparse Column) format:
+scio v0.1.3 uses a `.scio` folder with binary CSR/CSC sparse format:
 
 ```
 data.scio/
 ├── manifest.json           # Metadata (format version, orientation, shape)
-├── matrix.data.npy         # CSC data array (binary numpy)
-├── matrix.indices.npy      # CSC indices array (binary numpy)
-├── matrix.indptr.npy       # CSC indptr array (binary numpy)
+├── matrix.data.npy         # Sparse data array (binary numpy)
+├── matrix.indices.npy      # Sparse indices array (binary numpy)
+├── matrix.indptr.npy       # Sparse indptr array (binary numpy)
 ├── shape.json              # Matrix dimensions and orientation
 ├── barcodes.tsv.gz         # Cell IDs
 ├── features.tsv.gz         # Gene IDs
@@ -212,13 +226,13 @@ data.scio/
 ├── obsm/                   # Cell embeddings (parquet)
 │   ├── X_pca.parquet
 │   └── X_umap.parquet
-├── obsp/                   # Cell-cell graphs (binary CSC)
+├── obsp/                   # Cell-cell graphs (binary sparse)
 │   ├── connectivities.data.npy
 │   ├── connectivities.indices.npy
 │   └── connectivities.indptr.npy
 ├── varm/                   # Gene embeddings (if any)
 ├── varp/                   # Gene-gene graphs (if any)
-├── layers/                 # Additional matrices (binary CSC)
+├── layers/                 # Additional matrices (binary sparse)
 ├── raw/                    # Raw counts (if any)
 │   ├── matrix.data.npy
 │   ├── matrix.indices.npy
@@ -227,9 +241,12 @@ data.scio/
 └── uns.json                # Unstructured metadata
 ```
 
-### v0.1.2 Format Features
+### v0.1.3 Format Features
 
-- **Binary CSC format**: Sparse matrices stored as numpy arrays (.npy files)
+- **Binary CSR/CSC format**: Sparse matrices stored as numpy arrays (.npy files)
+  - CSR (default): Fastest write from Python (scanpy outputs CSR)
+  - CSC: Faster R read performance
+  - Format auto-detected from `shape.json` metadata
 - **cells×genes orientation**: Expression matrices stored in cells×genes layout
   - No transpose needed on Python read
   - R uses efficient `MatrixExtra::t_shallow()` for zero-copy transpose
@@ -249,7 +266,7 @@ data.scio/
 
 ## Performance
 
-Benchmark results for 100K cells × 36K genes dataset (v0.1.2):
+Benchmark results for 100K cells × 36K genes dataset (v0.1.3):
 
 ### Python
 | Operation | scio | H5AD |
@@ -260,11 +277,11 @@ Benchmark results for 100K cells × 36K genes dataset (v0.1.2):
 ### R (reading Python-saved data)
 | Format | Read Time | vs scio |
 |--------|-----------|---------|
-| **scio v0.1.2** | **29.4s** | 1x |
+| **scio v0.1.3** | **29.4s** | 1x |
 | H5AD (zellkonverter) | 99.3s | 3.4x slower |
 | MTX | 418.4s | 14.2x slower |
 
-scio v0.1.2 uses binary CSC format with numpy arrays for maximum R read performance.
+scio v0.1.3 uses binary CSR/CSC format with numpy arrays for maximum performance.
 
 ## Requirements
 
@@ -280,6 +297,7 @@ scio v0.1.2 uses binary CSC format with numpy arrays for maximum R read performa
 - R ≥ 4.0
 - Matrix
 - MatrixExtra (for efficient transpose)
+- RcppCNPy (for writing .npy files)
 - arrow
 - jsonlite
 - reticulate + numpy (for reading .npy files)

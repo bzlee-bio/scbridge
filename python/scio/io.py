@@ -15,9 +15,9 @@ from .formats import load_json
 
 def write(adata: ad.AnnData,
           path: Union[str, Path],
+          sparse_format: str = 'csr',
           overwrite: bool = False,
-          update: bool = False,
-          compress: bool = True) -> None:
+          update: bool = False) -> None:
     """
     Write AnnData object to .scio folder
 
@@ -33,8 +33,8 @@ def write(adata: ad.AnnData,
     - raw (raw counts)
     - uns (unstructured metadata)
 
-    Format inside .scio:
-    - MTX for sparse matrices (universal R/Python compatibility)
+    Format inside .scio (v0.1.2):
+    - Binary CSC/CSR (.npy) for sparse matrices (fast, cross-platform)
     - Parquet for DataFrames (preserves dtypes, efficient for large data)
     - JSON for metadata
 
@@ -44,13 +44,14 @@ def write(adata: ad.AnnData,
         AnnData object to save
     path : str or Path
         Output .scio folder path (e.g., "data.scio")
+    sparse_format : str
+        Format for sparse matrices: 'csr' (default, fastest write from scanpy)
+        or 'csc' (faster R read). Default is 'csr' since scanpy outputs CSR.
     overwrite : bool
         Whether to overwrite existing folder (default: False)
     update : bool
         Whether to perform incremental update using hash-based change detection
         (default: False). Only changed components will be rewritten.
-    compress : bool
-        Whether to compress MTX files (default: True)
 
     Example:
     --------
@@ -59,10 +60,17 @@ def write(adata: ad.AnnData,
     >>> adata = ad.read_h5ad("data.h5ad")
     >>> scio.write(adata, "data.scio")
     >>>
+    >>> # Use CSC format for faster R reading
+    >>> scio.write(adata, "data.scio", sparse_format='csc')
+    >>>
     >>> # Incremental update (only changed components)
     >>> scio.write(adata, "data.scio", update=True)
     """
     path = Path(path)
+
+    # Validate sparse_format
+    if sparse_format not in ('csr', 'csc'):
+        raise ValueError(f"sparse_format must be 'csr' or 'csc', got '{sparse_format}'")
 
     # Validate extension
     if not str(path).endswith('.scio'):
@@ -87,12 +95,12 @@ def write(adata: ad.AnnData,
         if not manifest.get('hashes'):
             # No hash info - do full save with hashes
             print("  No hash info found in existing file. Doing full save with hash computation...", flush=True)
-            save_to_folder(adata, path, compress=compress, compute_hashes=True)
+            save_to_folder(adata, path, sparse_format=sparse_format, compute_hashes=True)
             print(f"  ✓ Data saved with hashes to {path.name}", flush=True)
         else:
             # Incremental update - only write changed components
             print("  Performing incremental update...", flush=True)
-            update_folder(adata, path, manifest, compress=compress)
+            update_folder(adata, path, manifest, sparse_format=sparse_format)
             print(f"  ✓ Incremental update complete for {path.name}", flush=True)
 
         return
@@ -109,9 +117,9 @@ def write(adata: ad.AnnData,
         shutil.rmtree(path)
 
     print(f"  Saving data to {path.name}...", flush=True)
-    # Skip hash computation on fresh write for speed; hashes are only needed for incremental updates
-    # If user plans to do update=True later, they can do a full save with update=True first time
-    save_to_folder(adata, path, compress=compress, compute_hashes=False)
+    # Compute hashes if update=True (for future incremental updates)
+    # Skip hash computation on normal writes for speed
+    save_to_folder(adata, path, sparse_format=sparse_format, compute_hashes=update)
     print(f"  ✓ Data saved to {path.name}", flush=True)
 
 

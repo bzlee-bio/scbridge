@@ -3,16 +3,16 @@
 
 #' Save all components to folder structure
 #'
-#' Saves ALL 10 components:
+#' Saves ALL 10 components using binary sparse format (v0.1.3):
 #' X, obs, var, obsm, varm, obsp, varp, layers, raw, uns
 #'
 #' @param components Named list with all components
 #' @param folder_path Output folder path
-#' @param compress Whether to compress MTX files
+#' @param sparse_format Format for sparse matrices: "csr" (default) or "csc"
 #' @param compute_hashes Whether to compute and store MD5 hashes for
 #'   incremental updates (default: FALSE for backward compatibility)
 #' @export
-save_to_folder <- function(components, folder_path, compress = TRUE, compute_hashes = FALSE) {
+save_to_folder <- function(components, folder_path, sparse_format = "csr", compute_hashes = FALSE) {
   # Create output directory
   if (!dir.exists(folder_path)) {
     dir.create(folder_path, recursive = TRUE)
@@ -22,12 +22,12 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   hashes <- list()  # Store hashes for incremental updates
 
   # =========================================================================
-  # 1. X - Expression matrix (transpose to genes × cells for storage)
+  # 1. X - Expression matrix (cells × genes orientation, binary format)
   # =========================================================================
-  matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
-  X_transposed <- Matrix::t(components$X)  # Transpose to genes × cells
-  save_mtx(X_transposed, file.path(folder_path, matrix_file), compress = compress)
-  saved_files$X <- matrix_file
+  # Save in cells × genes orientation (no transpose needed for Python read)
+  save_sparse_binary(components$X, file.path(folder_path, "matrix"),
+                     sparse_format = sparse_format, orientation = "cells_x_genes")
+  saved_files$X <- "matrix"
   if (compute_hashes) hashes$X <- compute_hash(components$X)
 
   # =========================================================================
@@ -101,63 +101,62 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   }
 
   # =========================================================================
-  # 6. obsp - Cell-cell graphs
+  # 6. obsp - Cell-cell graphs (binary format)
   # =========================================================================
   if (length(components$obsp) > 0) {
     obsp_dir <- file.path(folder_path, "obsp")
     if (!dir.exists(obsp_dir)) dir.create(obsp_dir)
 
     for (key in names(components$obsp)) {
-      graph_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      save_mtx(components$obsp[[key]], file.path(obsp_dir, graph_file), compress = compress)
-      saved_files[[paste0("obsp_", key)]] <- file.path("obsp", graph_file)
+      save_sparse_binary(components$obsp[[key]], file.path(obsp_dir, key),
+                         sparse_format = sparse_format)
+      saved_files[[paste0("obsp_", key)]] <- file.path("obsp", key)
       if (compute_hashes) hashes[[paste0("obsp_", key)]] <- compute_hash(components$obsp[[key]])
     }
   }
 
   # =========================================================================
-  # 7. varp - Gene-gene graphs
+  # 7. varp - Gene-gene graphs (binary format)
   # =========================================================================
   if (length(components$varp) > 0) {
     varp_dir <- file.path(folder_path, "varp")
     if (!dir.exists(varp_dir)) dir.create(varp_dir)
 
     for (key in names(components$varp)) {
-      graph_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      save_mtx(components$varp[[key]], file.path(varp_dir, graph_file), compress = compress)
-      saved_files[[paste0("varp_", key)]] <- file.path("varp", graph_file)
+      save_sparse_binary(components$varp[[key]], file.path(varp_dir, key),
+                         sparse_format = sparse_format)
+      saved_files[[paste0("varp_", key)]] <- file.path("varp", key)
       if (compute_hashes) hashes[[paste0("varp_", key)]] <- compute_hash(components$varp[[key]])
     }
   }
 
   # =========================================================================
-  # 8. layers - Additional matrices
+  # 8. layers - Additional matrices (binary format, cells × genes)
   # =========================================================================
   if (length(components$layers) > 0) {
     layers_dir <- file.path(folder_path, "layers")
     if (!dir.exists(layers_dir)) dir.create(layers_dir)
 
     for (key in names(components$layers)) {
-      layer_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      layer_transposed <- Matrix::t(components$layers[[key]])  # Transpose to genes × cells
-      save_mtx(layer_transposed, file.path(layers_dir, layer_file), compress = compress)
-      saved_files[[paste0("layer_", key)]] <- file.path("layers", layer_file)
+      # Save in cells × genes orientation (same as X matrix)
+      save_sparse_binary(components$layers[[key]], file.path(layers_dir, key),
+                         sparse_format = sparse_format, orientation = "cells_x_genes")
+      saved_files[[paste0("layer_", key)]] <- file.path("layers", key)
       if (compute_hashes) hashes[[paste0("layer_", key)]] <- compute_hash(components$layers[[key]])
     }
   }
 
   # =========================================================================
-  # 9. raw - Raw data
+  # 9. raw - Raw data (binary format, cells × genes)
   # =========================================================================
   if (!is.null(components$raw)) {
     raw_dir <- file.path(folder_path, "raw")
     if (!dir.exists(raw_dir)) dir.create(raw_dir)
 
-    # Save raw X matrix
-    raw_matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
-    raw_X_transposed <- Matrix::t(components$raw$X)  # Transpose to genes × cells
-    save_mtx(raw_X_transposed, file.path(raw_dir, raw_matrix_file), compress = compress)
-    saved_files$raw_X <- file.path("raw", raw_matrix_file)
+    # Save raw X matrix in cells × genes orientation
+    save_sparse_binary(components$raw$X, file.path(raw_dir, "matrix"),
+                       sparse_format = sparse_format, orientation = "cells_x_genes")
+    saved_files$raw_X <- file.path("raw", "matrix")
     if (compute_hashes) hashes$raw_X <- compute_hash(components$raw$X)
 
     # Save raw var metadata
@@ -199,8 +198,9 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
   }
 
   manifest <- list(
-    format = ifelse(compute_hashes, "scio v1.1", "scio v1.0"),
+    format = "scio v0.1.2",
     created_by = "scio::write",
+    orientation = "cells_x_genes",
     dimensions = list(
       n_obs = nrow(components$X),
       n_vars = ncol(components$X)
@@ -234,14 +234,14 @@ save_to_folder <- function(components, folder_path, compress = TRUE, compute_has
 #' Update folder with only changed components (incremental update)
 #'
 #' Compares current components with stored hashes and only rewrites
-#' components that have changed.
+#' components that have changed. Uses binary sparse format (v0.1.3).
 #'
 #' @param components Named list with all components
 #' @param folder_path Existing .scio folder path
 #' @param manifest Existing manifest with hashes
-#' @param compress Whether to compress MTX files
+#' @param sparse_format Format for sparse matrices: "csr" (default) or "csc"
 #' @export
-update_folder <- function(components, folder_path, manifest, compress = TRUE) {
+update_folder <- function(components, folder_path, manifest, sparse_format = "csr") {
   old_hashes <- manifest$hashes
   new_hashes <- list()
   saved_files <- manifest$files  # Keep existing file paths
@@ -265,12 +265,11 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
   }
 
   # =========================================================================
-  # 1. X - Expression matrix
+  # 1. X - Expression matrix (binary format, cells × genes)
   # =========================================================================
-  matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
   check_and_update(components$X, "X", function() {
-    X_transposed <- Matrix::t(components$X)
-    save_mtx(X_transposed, file.path(folder_path, matrix_file), compress = compress)
+    save_sparse_binary(components$X, file.path(folder_path, "matrix"),
+                       sparse_format = sparse_format, orientation = "cells_x_genes")
   })
 
   # =========================================================================
@@ -334,7 +333,7 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
   }
 
   # =========================================================================
-  # 6. obsp - Cell-cell graphs
+  # 6. obsp - Cell-cell graphs (binary format)
   # =========================================================================
   if (length(components$obsp) > 0) {
     obsp_dir <- file.path(folder_path, "obsp")
@@ -342,16 +341,16 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
 
     for (key in names(components$obsp)) {
       hash_key <- paste0("obsp_", key)
-      graph_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      saved_files[[hash_key]] <- file.path("obsp", graph_file)
+      saved_files[[hash_key]] <- file.path("obsp", key)
       check_and_update(components$obsp[[key]], hash_key, function() {
-        save_mtx(components$obsp[[key]], file.path(obsp_dir, graph_file), compress = compress)
+        save_sparse_binary(components$obsp[[key]], file.path(obsp_dir, key),
+                           sparse_format = sparse_format)
       })
     }
   }
 
   # =========================================================================
-  # 7. varp - Gene-gene graphs
+  # 7. varp - Gene-gene graphs (binary format)
   # =========================================================================
   if (length(components$varp) > 0) {
     varp_dir <- file.path(folder_path, "varp")
@@ -359,16 +358,16 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
 
     for (key in names(components$varp)) {
       hash_key <- paste0("varp_", key)
-      graph_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      saved_files[[hash_key]] <- file.path("varp", graph_file)
+      saved_files[[hash_key]] <- file.path("varp", key)
       check_and_update(components$varp[[key]], hash_key, function() {
-        save_mtx(components$varp[[key]], file.path(varp_dir, graph_file), compress = compress)
+        save_sparse_binary(components$varp[[key]], file.path(varp_dir, key),
+                           sparse_format = sparse_format)
       })
     }
   }
 
   # =========================================================================
-  # 8. layers - Additional matrices
+  # 8. layers - Additional matrices (binary format, cells × genes)
   # =========================================================================
   if (length(components$layers) > 0) {
     layers_dir <- file.path(folder_path, "layers")
@@ -376,26 +375,24 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
 
     for (key in names(components$layers)) {
       hash_key <- paste0("layer_", key)
-      layer_file <- ifelse(compress, paste0(key, ".mtx.gz"), paste0(key, ".mtx"))
-      saved_files[[hash_key]] <- file.path("layers", layer_file)
+      saved_files[[hash_key]] <- file.path("layers", key)
       check_and_update(components$layers[[key]], hash_key, function() {
-        layer_transposed <- Matrix::t(components$layers[[key]])
-        save_mtx(layer_transposed, file.path(layers_dir, layer_file), compress = compress)
+        save_sparse_binary(components$layers[[key]], file.path(layers_dir, key),
+                           sparse_format = sparse_format, orientation = "cells_x_genes")
       })
     }
   }
 
   # =========================================================================
-  # 9. raw - Raw data
+  # 9. raw - Raw data (binary format, cells × genes)
   # =========================================================================
   if (!is.null(components$raw)) {
     raw_dir <- file.path(folder_path, "raw")
     if (!dir.exists(raw_dir)) dir.create(raw_dir)
 
     check_and_update(components$raw$X, "raw_X", function() {
-      raw_matrix_file <- ifelse(compress, "matrix.mtx.gz", "matrix.mtx")
-      raw_X_transposed <- Matrix::t(components$raw$X)
-      save_mtx(raw_X_transposed, file.path(raw_dir, raw_matrix_file), compress = compress)
+      save_sparse_binary(components$raw$X, file.path(raw_dir, "matrix"),
+                         sparse_format = sparse_format, orientation = "cells_x_genes")
     })
 
     if (ncol(components$raw$var) > 0) {
@@ -423,7 +420,8 @@ update_folder <- function(components, folder_path, manifest, compress = TRUE) {
     I(x)  # I() prevents auto_unbox from converting single elements to scalars
   }
 
-  manifest$format <- "scio v1.1"
+  manifest$format <- "scio v0.1.2"
+  manifest$orientation <- "cells_x_genes"
   manifest$hashes <- new_hashes
   manifest$files <- saved_files  # Update file paths
   manifest$last_updated <- format(Sys.time(), "%Y-%m-%dT%H:%M:%S")

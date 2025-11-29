@@ -105,12 +105,12 @@ extract_components_from_sce <- function(sce_obj) {
   # Get count matrix (transpose from genes × cells to cells × genes)
   # Handle DelayedArray and other S4 matrix types by ensuring it's a proper matrix
   counts_matrix <- SummarizedExperiment::assay(sce_obj, "counts")
-  # Use Matrix::t() which handles both regular and sparse matrices
   if (inherits(counts_matrix, "DelayedArray")) {
     # For DelayedArray, realize to sparse or dense matrix first
     counts_matrix <- as(counts_matrix, "sparseMatrix")
   }
-  components$X <- Matrix::t(counts_matrix)
+  # Use fast transpose (O(1) with MatrixExtra, or regular Matrix::t)
+  components$X <- .fast_transpose(counts_matrix)
 
   # Get cell metadata
   components$obs <- as.data.frame(SummarizedExperiment::colData(sce_obj))
@@ -137,7 +137,7 @@ extract_components_from_sce <- function(sce_obj) {
       if (inherits(layer_matrix, "DelayedArray")) {
         layer_matrix <- as(layer_matrix, "sparseMatrix")
       }
-      components$layers[[assay]] <- Matrix::t(layer_matrix)
+      components$layers[[assay]] <- .fast_transpose(layer_matrix)
     }
   }
 
@@ -148,7 +148,7 @@ extract_components_from_sce <- function(sce_obj) {
     if (inherits(raw_matrix, "DelayedArray")) {
       raw_matrix <- as(raw_matrix, "sparseMatrix")
     }
-    components$raw$X <- Matrix::t(raw_matrix)
+    components$raw$X <- .fast_transpose(raw_matrix)
 
     # Get raw var from metadata if present
     if (!is.null(S4Vectors::metadata(sce_obj)$raw_var)) {
