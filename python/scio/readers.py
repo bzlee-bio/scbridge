@@ -126,9 +126,8 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     # 2. Load cell IDs (obs_names)
     # =========================================================================
     barcodes_file = folder_path / manifest['files']['barcodes']
-    # Handle both .tsv and .tsv.gz formats
-    compression = 'gzip' if str(barcodes_file).endswith('.gz') else None
-    barcodes_df = pd.read_csv(barcodes_file, sep='\t', header=None, compression=compression)
+    # Handle both .tsv and .tsv.gz formats - use 'infer' to auto-detect compression
+    barcodes_df = pd.read_csv(barcodes_file, sep='\t', header=None, compression='infer')
     obs_names = barcodes_df.iloc[:, 0].values
 
     # =========================================================================
@@ -139,7 +138,7 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
         features_file,
         sep='\t',
         header=None,
-        compression='gzip' if str(features_file).endswith('.gz') else None
+        compression='infer'
     )
     var_names = features_df.iloc[:, 0].values
 
@@ -226,7 +225,7 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
             raw_features_file,
             sep='\t',
             header=None,
-            compression='gzip' if str(raw_features_file).endswith('.gz') else None
+            compression='infer'
         )
         raw_var_names = raw_features_df.iloc[:, 0].values
 
