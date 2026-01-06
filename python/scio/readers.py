@@ -27,6 +27,27 @@ def _ensure_list(value: Union[str, List, None]) -> List:
     return list(value)
 
 
+def _detect_gzip(file_path: Path) -> bool:
+    """
+    Detect if a file is gzipped by checking its magic bytes (0x1f 0x8b)
+
+    Parameters:
+    -----------
+    file_path : Path
+        Path to file to check
+
+    Returns:
+    --------
+    bool : True if file is gzipped, False otherwise
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            magic = f.read(2)
+            return len(magic) == 2 and magic[0] == 0x1f and magic[1] == 0x8b
+    except Exception:
+        return False
+
+
 def _load_sparse_matrix(folder_path: Path, file_key: str, manifest: dict,
                         transpose: bool = False, is_expression_matrix: bool = False):
     """
@@ -126,19 +147,22 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
     # 2. Load cell IDs (obs_names)
     # =========================================================================
     barcodes_file = folder_path / manifest['files']['barcodes']
-    # Handle both .tsv and .tsv.gz formats - use 'infer' to auto-detect compression
-    barcodes_df = pd.read_csv(barcodes_file, sep='\t', header=None, compression='infer')
+    # Detect compression by checking file magic bytes (not just extension)
+    compression = 'gzip' if _detect_gzip(barcodes_file) else None
+    barcodes_df = pd.read_csv(barcodes_file, sep='\t', header=None, compression=compression)
     obs_names = barcodes_df.iloc[:, 0].values
 
     # =========================================================================
     # 3. Load gene IDs (var_names)
     # =========================================================================
     features_file = folder_path / manifest['files']['features']
+    # Detect compression by checking file magic bytes (not just extension)
+    compression = 'gzip' if _detect_gzip(features_file) else None
     features_df = pd.read_csv(
         features_file,
         sep='\t',
         header=None,
-        compression='infer'
+        compression=compression
     )
     var_names = features_df.iloc[:, 0].values
 
@@ -221,11 +245,13 @@ def load_from_folder(folder_path: Path) -> ad.AnnData:
 
         # Load raw gene IDs
         raw_features_file = raw_dir / manifest['files']['raw_features'].split('/')[-1]
+        # Detect compression by checking file magic bytes (not just extension)
+        compression = 'gzip' if _detect_gzip(raw_features_file) else None
         raw_features_df = pd.read_csv(
             raw_features_file,
             sep='\t',
             header=None,
-            compression='infer'
+            compression=compression
         )
         raw_var_names = raw_features_df.iloc[:, 0].values
 
