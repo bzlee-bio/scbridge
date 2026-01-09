@@ -11,6 +11,7 @@ from typing import Union
 from .writers import save_to_folder, update_folder
 from .readers import load_from_folder
 from .formats import load_json
+from .lazy import LazyAnnData
 
 
 def write(adata: ad.AnnData,
@@ -123,7 +124,7 @@ def write(adata: ad.AnnData,
     print(f"  ✓ Data saved to {path.name}", flush=True)
 
 
-def read(path: Union[str, Path]) -> ad.AnnData:
+def read(path: Union[str, Path], lazy: bool = False) -> Union[ad.AnnData, LazyAnnData]:
     """
     Read AnnData object from .scio folder (or legacy tar archive)
 
@@ -143,18 +144,31 @@ def read(path: Union[str, Path]) -> ad.AnnData:
     -----------
     path : str or Path
         Path to .scio folder (also supports legacy tar archives)
+    lazy : bool
+        If True, use lazy loading (only load components when accessed).
+        This significantly improves performance for large datasets.
+        Default: False (load all data immediately)
 
     Returns:
     --------
-    AnnData : Reconstructed AnnData object
+    AnnData or LazyAnnData :
+        Reconstructed AnnData object (lazy=False) or
+        LazyAnnData object (lazy=True)
 
     Example:
     --------
-    >>> import scio as sb
-    >>> adata = sb.read("data.scio")
-    >>> # Also works with legacy tar archives:
-    >>> adata = sb.read("data.scio")
-    >>> print(adata)
+    >>> import scio
+    >>> # Standard loading - loads all data
+    >>> adata = scio.read("data.scio")
+    >>>
+    >>> # Lazy loading - only loads structure initially
+    >>> adata = scio.read("data.scio", lazy=True)
+    >>> print(adata.shape)  # Fast - no data loaded
+    >>> cell_types = adata.obs['cell_type']  # Loads obs on first access
+    >>> expression = adata.X  # Loads X on first access
+    >>>
+    >>> # Convert lazy to full AnnData when needed
+    >>> full_adata = adata.to_memory()
     """
     path = Path(path)
 
@@ -163,13 +177,25 @@ def read(path: Union[str, Path]) -> ad.AnnData:
 
     # Check if it's a folder or a tar archive
     if path.is_dir():
-        # It's a folder - load directly
-        print(f"  Loading data from {path.name}...", flush=True)
-        adata = load_from_folder(path)
-        print(f"  ✓ Data loaded", flush=True)
-        return adata
+        # It's a folder - load directly (or lazy load)
+        if lazy:
+            print(f"  Initializing lazy loading from {path.name}...", flush=True)
+            adata = LazyAnnData(path)
+            print(f"  ✓ Structure loaded (data will load on access)", flush=True)
+            return adata
+        else:
+            print(f"  Loading data from {path.name}...", flush=True)
+            adata = load_from_folder(path)
+            print(f"  ✓ Data loaded", flush=True)
+            return adata
 
     # It's a file - try to open as tar archive (for backward compatibility)
+    if lazy:
+        raise ValueError(
+            "Lazy loading is not supported for legacy tar archives.\n"
+            "Please use the folder format (.scio) for lazy loading."
+        )
+
     try:
         print(f"  Extracting legacy tar archive...", flush=True)
         with tempfile.TemporaryDirectory() as tmpdir:

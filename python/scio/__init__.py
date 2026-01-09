@@ -22,5 +22,6 @@ Example:
 
 from ._version import __version__
 from .io import write, read
+from .lazy import LazyAnnData
 
-__all__ = ['write', 'read', '__version__']
+__all__ = ['write', 'read', 'LazyAnnData', '__version__']
