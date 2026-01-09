@@ -358,6 +358,49 @@ class LazyAnnData:
 
         return adata
 
+    def __getitem__(self, index):
+        """
+        Subset the LazyAnnData object (same syntax as AnnData).
+
+        This loads all data into memory and returns a subset AnnData object.
+        When subsetting is needed, we assume the user is ready to work with data.
+
+        Parameters:
+        -----------
+        index : tuple, slice, ndarray, or list
+            Subsetting index for observations and/or variables
+
+        Returns:
+        --------
+        AnnData : Subset of data as regular AnnData object
+
+        Example:
+        --------
+        >>> # Subset by observation names
+        >>> adata_sub = adata[adata.obs['cell_type'] == 'T cell']
+        >>>
+        >>> # Subset by indices
+        >>> adata_sub = adata[0:1000]
+        >>>
+        >>> # Subset both obs and vars
+        >>> adata_sub = adata[0:1000, 0:500]
+        """
+        # Load all data into memory
+        full_adata = self.to_memory()
+
+        # Perform subsetting on the full AnnData object
+        return full_adata[index]
+
+    def copy(self):
+        """
+        Create a copy by loading all data into memory and returning AnnData.copy()
+
+        Returns:
+        --------
+        AnnData : Copy of data as regular AnnData object
+        """
+        return self.to_memory().copy()
+
     def __repr__(self):
         """String representation"""
         loaded_components = [k for k, v in self._loaded.items() if v]
